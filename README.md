@@ -1,2 +1,2 @@
-# multi-stage-tracking
-Multi-stage object tracking framework.
+# Unified Tracking
+Multi-stage object tracking framework research project.
