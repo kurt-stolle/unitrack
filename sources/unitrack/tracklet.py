@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from collections import OrderedDict, deque
+from collections import deque
 from enum import Enum
-from statistics import covariance
 
 import numpy as np
 import numpy.typing as NP
@@ -12,6 +11,7 @@ from .kalman import KalmanFilter
 from .utils.box import tlwh_to_xyah
 
 __all__ = ["TrackState", "Tracklet"]
+
 
 class TrackState(Enum):
     NEW = 1
