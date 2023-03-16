@@ -23,7 +23,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
-dependencies = ["torch >= 2.0.0", "scipy", "numpy", "lap"]
+dependencies = ["torch >= 2.0.0", "scikit-learn >= 1.2.2", "lap >= 0.4.0"]
 
 dynamic = ["version"]
 
