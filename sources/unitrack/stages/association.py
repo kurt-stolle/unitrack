@@ -1,10 +1,6 @@
-from typing import Optional, Sequence, Tuple, Union
+from typing import Tuple
 
-import numpy as np
-import numpy.typing as NP
-import torch
-
-from ...assignment import Jonker
+from ..assignment import Jonker
 from ..costs import CategoryGate, Cost
 from ..detections import Detections
 from .base_stage import Stage, StageContext
@@ -33,9 +29,7 @@ class Association(Stage):
         for cost in costs:
             self.required_fields += cost.required_fields
 
-    def forward(
-        self, ctx: StageContext, cs: Detections, ds: Detections
-    ) -> Tuple[Detections, Detections]:
+    def forward(self, ctx: StageContext, cs: Detections, ds: Detections) -> Tuple[Detections, Detections]:
         if len(cs) == 0 or len(ds) == 0:
             return cs, ds
 

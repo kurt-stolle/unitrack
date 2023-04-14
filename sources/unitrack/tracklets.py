@@ -58,9 +58,7 @@ class Tracklets(torch.nn.Module):
     def __len__(self) -> int:
         return self.count
 
-    def forward(
-        self, sequence_id: str, frame: int, res: TrackerResult
-    ) -> torch.Tensor:
+    def forward(self, sequence_id: str, frame: int, res: TrackerResult) -> torch.Tensor:
         """
         Update the ``Tracklets`` at a given frame with new state data from
         detections.
@@ -87,21 +85,13 @@ class Tracklets(torch.nn.Module):
 
         if not torch.allclose(
             res.update.indices,
-            torch.arange(
-                len(res.update), device=device, dtype=res.update.indices.dtype
-            ),
+            torch.arange(len(res.update), device=device, dtype=res.update.indices.dtype),
         ):
-            raise ValueError(
-                "Updated detections are not in the correct ordering!"
-            )
+            raise ValueError("Updated detections are not in the correct ordering!")
         if not res.update.mutable:
-            raise ValueError(
-                "Updated observations must be a mutable detections collection!"
-            )
+            raise ValueError("Updated observations must be a mutable detections collection!")
         if res.extend.mutable:
-            raise ValueError(
-                "Updated additions should not be a mutable collection!"
-            )
+            raise ValueError("Updated additions should not be a mutable collection!")
 
         self.frame = frame
         self.count += 1
@@ -113,9 +103,7 @@ class Tracklets(torch.nn.Module):
         match_mask = (res.matches >= 0).to(torch.bool)
         match_update_indices = res.matches[match_mask]
 
-        detection_ids[match_mask] = res.update.get(self.state_id)[
-            res.update.indices[match_update_indices]
-        ]
+        detection_ids[match_mask] = res.update.get(self.state_id)[res.update.indices[match_update_indices]]
 
         # Put new measurements into state
         update_num = len(res.update)
@@ -125,19 +113,13 @@ class Tracklets(torch.nn.Module):
 
         # Add new measurements into states
         extend_num = len(res.extend)
-        extend_ids = (
-            torch.arange(extend_num, dtype=torch.int, device=device) + 1
-        )
+        extend_ids = torch.arange(extend_num, dtype=torch.int, device=device) + 1
         if update_num > 0:
             extend_ids += res.update.get(self.state_id).max()
         if extend_num > 0:
             for id, state in self.states.items():
                 if id == self.state_active:
-                    state.extend(  # type: ignore
-                        torch.as_tensor(
-                            [True] * extend_num, dtype=torch.bool, device=device
-                        )
-                    )
+                    state.extend(torch.as_tensor([True] * extend_num, dtype=torch.bool, device=device))  # type: ignore
                 elif id == self.state_frame:
                     state.extend(  # type: ignore
                         torch.as_tensor(
@@ -159,14 +141,13 @@ class Tracklets(torch.nn.Module):
                 elif id in res.extend:
                     state.extend(res.extend.get(id))  # type: ignore
                 else:
-                    raise ValueError(
-                        f"State '{id}' does not match a field in {res.extend}!"
-                    )
+                    raise ValueError(f"State '{id}' does not match a field in {res.extend}!")
 
         detection_ids[~match_mask] = extend_ids
 
         return detection_ids
 
+    @torch.jit.export
     def reset(self) -> None:
         """
         Reset the states of this ``Tracklets`` module.
@@ -178,6 +159,7 @@ class Tracklets(torch.nn.Module):
         for state in self.states.values():
             state.reset()  # type: ignore
 
+    @torch.jit.export
     def observe(self) -> Detections:
         """
         Observe the current state of tracklets.

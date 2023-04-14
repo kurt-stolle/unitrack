@@ -4,7 +4,6 @@ import pytest
 import torch
 
 from unitrack import Tracker, Tracklets, costs, fields, stages, states
-from unitrack.tracker import TrackerResult
 
 
 @pytest.mark.parametrize("jit", [False, True])
@@ -23,9 +22,7 @@ def test_tracker(jit):
             fields.Value(id="pos", key="pos_key"),
             fields.Value(id="categories", key="pred_class"),
         ],
-        stages=[
-            stages.Association(cost=costs.Distance("pos"), threshold=999999)
-        ],
+        stages=[stages.Association(cost=costs.Distance("pos"), threshold=999999)],
     )
     if jit:
         tracker = cast(Tracker, torch.jit.script(tracker))  # type: ignore
@@ -48,7 +45,5 @@ def test_tracker(jit):
         ids = tracks("seq", frame, res)
 
         assert len(ids) == len(kvmap["pos_key"])
-        assert torch.all(
-            ids == torch.arange(len(kvmap["pos_key"]), dtype=torch.long) + 1
-        )
+        assert torch.all(ids == torch.arange(len(kvmap["pos_key"]), dtype=torch.long) + 1)
         assert isinstance(ids, torch.Tensor), type(ids)

@@ -3,6 +3,7 @@ from typing import Any, Dict, Optional
 import torch
 
 
+@torch.jit.script
 class Detections:
     """
     Detections is a container class for field and state values for detections at
@@ -22,13 +23,13 @@ class Detections:
         self.mutable = mutable
 
         if indices is None:
-            device: Optional[torch.device] = None
-            for value in fields.values():
-                device = value.device
-                break
-            if device is None:
-                raise ValueError("Failed to find detections device!")
-            indices = torch.arange(len(self), device=device, dtype=torch.long)
+            # device: Optional[torch.device] = None
+            # for value in fields.values():
+            #     device = value.device
+            #     break
+            # if device is None:
+            #     raise ValueError("Failed to find detections device!")
+            indices = torch.arange(len(self), dtype=torch.long)
         self.indices = indices
 
         self._validate()
@@ -40,9 +41,7 @@ class Detections:
                 select[key] = values[index]
             else:
                 raise TypeError(f"Unsupported field type at key '{key}'!")
-        return Detections(
-            fields=select, indices=self.indices[index], mutable=False
-        )
+        return Detections(fields=select, indices=self.indices[index], mutable=False)
 
     def __len__(self):
         for item in self._fields.values():
@@ -76,24 +75,14 @@ class Detections:
     def _validate(self) -> None:
         len_self = len(self)
         if len(self.indices) != len(self):
-            raise ValueError(
-                f"Indices length {len(self.indices)} not equal to fields "
-                f"length {len_self}!"
-            )
+            raise ValueError(f"Indices length {len(self.indices)} not equal to fields " f"length {len_self}!")
 
         for key, value in self._fields.items():
             len_value = len(value)
             if len_self != len_value:
-                raise ValueError(
-                    f"Excepted fields of length {len_self} but found '{key}' "
-                    f"with length {len_value}!"
-                )
+                raise ValueError(f"Excepted fields of length {len_self} but found '{key}' " f"with length {len_value}!")
 
     def __repr__(self) -> str:
         indices: list[int] = self.indices.tolist()
         field_names: list[str] = list(self._fields.keys())
-        return (
-            f"Detections({len(self)}, "
-            f"fields={field_names}, "
-            f"indices={indices}, mutable={self.mutable})"
-        )
+        return f"Detections({len(self)}, " f"fields={field_names}, " f"indices={indices}, mutable={self.mutable})"

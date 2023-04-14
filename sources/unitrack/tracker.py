@@ -40,9 +40,7 @@ class Tracker(nn.Module):
                 continue
             for id in stage.required_fields:
                 if id not in self.fields:
-                    raise ValueError(
-                        f"Field with ID '{id}' missing for {stage}!"
-                    )
+                    raise ValueError(f"Field with ID '{id}' missing for {stage}!")
 
     def get_required_fields(self) -> List[str]:
         field_keys: List[str] = []
@@ -79,24 +77,16 @@ class Tracker(nn.Module):
         # Apply stage cascade
         return self._apply_stages(ctx, states, detections)
 
-    def _apply_fields(
-        self, kvmap: dict[str, Tensor], data: dict[str, Tensor]
-    ) -> Detections:
-        return Detections(
-            {key: field(kvmap, data) for key, field in self.fields.items()}  # type: ignore
-        )
+    def _apply_fields(self, kvmap: dict[str, Tensor], data: dict[str, Tensor]) -> Detections:
+        items = {key: field(kvmap, data) for key, field in self.fields.items()}
+        return Detections(items)  # type: ignore
 
-    def _apply_stages(
-        self, ctx: StageContext, states: Detections, detections: Detections
-    ) -> TrackerResult:
+    def _apply_stages(self, ctx: StageContext, states: Detections, detections: Detections) -> TrackerResult:
         # Sanity check
         obs_frames = states.get("_start")
         if not torch.all(obs_frames < ctx.frame):
             frame_list: List[int] = obs_frames.tolist()
-            raise ValueError(
-                f"Attempted to track at frame {ctx.frame} while `Tracklets` "
-                f"has frames {frame_list}"
-            )
+            raise ValueError(f"Attempted to track at frame {ctx.frame} while `Tracklets` " f"has frames {frame_list}")
 
         # Select candidates based on active flag
         cs = states[states.get("_active")]
