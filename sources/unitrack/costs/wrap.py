@@ -1,8 +1,8 @@
 from typing import Final, List, Optional, Tuple
 
 import torch
+from torch import Tensor
 
-from .....utils.cosine import cosine_distance
 from ..detections import Detections
 from .base_cost import Cost
 
@@ -48,9 +48,7 @@ class Distance(Cost):
         self.p_norm = p_norm
         self.alpha = alpha
 
-    def get_field(
-        self, cs: Detections, ds: Detections
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def get_field(self, cs: Detections, ds: Detections) -> Tuple[torch.Tensor, torch.Tensor]:
         ts_field = cs.get(self.field)
         ds_field = ds.get(self.field)
 
@@ -78,4 +76,29 @@ class Cosine(Distance):
 
     def compute(self, cs: Detections, ds: Detections):
         ts_field, ds_field = self.get_field(cs, ds)
-        return cosine_distance(ts_field, ds_field) ** self.alpha
+        return (1.0 - _cosine_similarity(ts_field, ds_field)) ** self.alpha
+
+
+def _cosine_similarity(a: Tensor, b: Tensor) -> Tensor:
+    """
+    Manual computation of the cosine similarity.
+
+    Based on: https://stackoverflow.com/questions/50411191/how-to-compute-the-cosine-similarity-in-pytorch-for-all-rows-in-a-matrix-with-re  # noqa: E501
+
+    ```
+    csim(a,b) = dot(a, b) / (norm(a) * norm(b))
+            = dot(a / norm(a), b / norm(b))
+    ```
+
+    Clamp with min(eps) for numerical stability. The final dot
+    product is computed via transposed matrix multiplication (see `torch.mm`).
+    """
+    a_norm = _stable_norm(a)
+    b_norm = _stable_norm(b)
+
+    return torch.mm(a_norm, b_norm.T)
+
+
+def _stable_norm(t: torch.Tensor, eps=9e-4):
+    norm = torch.linalg.vector_norm(t, dim=1, keepdim=True)
+    return t / norm.clamp(min=eps)
