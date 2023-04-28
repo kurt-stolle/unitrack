@@ -5,7 +5,7 @@ import torch
 __all__ = ["Auction"]
 
 
-from ._assignment import Assignment
+from .base_assignment import Assignment
 
 
 class Auction(Assignment):
@@ -26,17 +26,13 @@ class Auction(Assignment):
 
         self.register_buffer("bid_size", torch.as_tensor(bid_size))
 
-    def forward(
-        self, cost_matrix: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, cost_matrix: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         eps = self.bid_size / min(cost_matrix.shape)
 
         device = cost_matrix.device
 
         cost = torch.zeros((1, cost_matrix.shape[1]), device=device)
-        ass = torch.full(
-            (cost_matrix.shape[0],), -1, device=device, dtype=torch.long
-        )
+        ass = torch.full((cost_matrix.shape[0],), -1, device=device, dtype=torch.long)
         bids = torch.zeros_like(cost_matrix)
 
         counter = 0
@@ -78,12 +74,7 @@ class Auction(Assignment):
 
                 cost[:, have_bidder] += high_bids
 
-                # curr_ass[(curr_ass.view(-1, 1) == have_bidder.view(1, -1)).sum(dim=1)] = -1
-                ind = (
-                    (ass.view(-1, 1) == have_bidder.view(1, -1))
-                    .sum(dim=1)
-                    .nonzero()
-                )
+                ind = (ass.view(-1, 1) == have_bidder.view(1, -1)).sum(dim=1).nonzero()
                 ass[ind] = -1
 
                 ass[high_bidders] = have_bidder.squeeze()

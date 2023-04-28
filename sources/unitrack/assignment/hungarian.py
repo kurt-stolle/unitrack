@@ -1,12 +1,15 @@
 """
 PyTorch implementation of the Hungarian algorithm for solving the assignment problem.
 """
+
 from typing import Tuple
 
 import torch
 from torch import Tensor
 
-from ._assignment import Assignment
+from .base_assignment import Assignment
+
+__all__ = ["HungarianAssignment"]
 
 
 class HungarianAssignment(Assignment):
@@ -50,9 +53,7 @@ class HungarianAssignment(Assignment):
         #         If there are no starred zeros, then prime the first zero in the column.
         #         If there are more than one starred zeros, then do nothing.
         starred, primed = self._find_starred_primed(cost_matrix)
-        col_count = torch.bincount(
-            starred.nonzero()[1], minlength=cost_matrix.size(1)
-        )
+        col_count = torch.bincount(starred.nonzero()[1], minlength=cost_matrix.size(1))
         for i in range(cost_matrix.size(1)):
             if col_count[i] == 1:
                 row = starred.nonzero()[0][starred.nonzero()[1] == i]
@@ -65,9 +66,7 @@ class HungarianAssignment(Assignment):
         #         Find the smallest uncovered value.
         #         Subtract this value from each uncovered element.
         #         Add this value to each element that is covered with two lines.
-        col_count = torch.bincount(
-            starred.nonzero()[1], minlength=cost_matrix.size(1)
-        )
+        col_count = torch.bincount(starred.nonzero()[1], minlength=cost_matrix.size(1))
         uncovered_min = cost_matrix[lines == 0].min()
         cost_matrix[lines == 0] -= uncovered_min
         cost_matrix[lines == 2] += uncovered_min
@@ -135,9 +134,7 @@ class HungarianAssignment(Assignment):
                 lines[i, row[1]] = 1
         return lines
 
-    def _find_starred_primed(
-        self, cost_matrix: Tensor
-    ) -> Tuple[Tensor, Tensor]:
+    def _find_starred_primed(self, cost_matrix: Tensor) -> Tuple[Tensor, Tensor]:
         """
         Finds a set of starred zeros and primed zeros.
 

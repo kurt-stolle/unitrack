@@ -6,6 +6,8 @@ from torch import Tensor, nn
 
 from ..detections import Detections
 
+__all__ = ["Cost", "WeightedReduce"]
+
 
 class Cost(nn.Module):
     """
@@ -21,13 +23,9 @@ class Cost(nn.Module):
     def forward(self, cs: Detections, ds: Detections) -> Tensor:
         for field_name in self.required_fields:
             if field_name not in cs:
-                raise ValueError(
-                    f"Missing field '{field_name}' in trackets: {cs}!"
-                )
+                raise ValueError(f"Missing field '{field_name}' in trackets: {cs}!")
             if field_name not in ds:
-                raise ValueError(
-                    f"Missing field '{field_name}' in detections: {cs}!"
-                )
+                raise ValueError(f"Missing field '{field_name}' in detections: {cs}!")
 
         return self.compute(cs, ds)
 
@@ -66,23 +64,17 @@ class WeightedReduce(Cost):
         weights: Optional[Sequence[float]] = None,
         reduction="sum",
     ):
-        super().__init__(
-            required_fields=tuple(set().union(c.required_fields for c in costs))
-        )
+        super().__init__(required_fields=tuple(set().union(c.required_fields for c in costs)))
 
         self.reduction = reduction
         self.costs = nn.ModuleList(costs)
         if weights is None:
             weights = [1.0] * len(costs)
 
-        self.register_buffer(
-            "weights", torch.tensor(weights, dtype=torch.float)
-        )
+        self.register_buffer("weights", torch.tensor(weights, dtype=torch.float))
 
     def compute(self, cs: Detections, ds: Detections) -> Tensor:
-        costs = torch.stack(
-            [w * cost(cs, ds) for w, cost in zip(self.weights, self.costs)]
-        )
+        costs = torch.stack([w * cost(cs, ds) for w, cost in zip(self.weights, self.costs)])
 
         if self.reduction == "sum":
             return costs.sum(dim=0)

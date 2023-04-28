@@ -1,20 +1,18 @@
-from typing import Dict, List, NamedTuple, Optional
+from typing import Dict, List, NamedTuple, Optional, cast
 from warnings import warn
 
 import torch
-from torch import Tensor, nn
+import torch.nn as nn
 
 from .detections import Detections
 from .fields import Field
 from .stages import Stage, StageContext
 
-__all__ = ["Tracker"]
-
 
 class TrackerResult(NamedTuple):
     update: Detections
     extend: Detections
-    matches: Tensor
+    matches: torch.Tensor
 
 
 class Tracker(nn.Module):
@@ -28,8 +26,8 @@ class Tracker(nn.Module):
 
         assert len(stages) > 0
 
-        self.stages = nn.ModuleList(stages)
-        self.fields = nn.ModuleDict({field.id: field for field in fields})
+        self.stages = cast(List[Stage], nn.ModuleList(stages))
+        self.fields = cast(Dict[str, Field], nn.ModuleDict({field.id: field for field in fields}))
 
         self._validate()
 
@@ -58,8 +56,8 @@ class Tracker(nn.Module):
         self,
         frame: int,
         states: Detections,
-        kvmap: dict[str, Tensor],
-        data: dict[str, Tensor],
+        kvmap: dict[str, torch.Tensor],
+        data: dict[str, torch.Tensor],
     ) -> TrackerResult:
         assert frame >= 0, frame
 
@@ -77,7 +75,7 @@ class Tracker(nn.Module):
         # Apply stage cascade
         return self._apply_stages(ctx, states, detections)
 
-    def _apply_fields(self, kvmap: dict[str, Tensor], data: dict[str, Tensor]) -> Detections:
+    def _apply_fields(self, kvmap: dict[str, torch.Tensor], data: dict[str, torch.Tensor]) -> Detections:
         items = {key: field(kvmap, data) for key, field in self.fields.items()}
         return Detections(items)  # type: ignore
 

@@ -5,6 +5,8 @@ import torch
 
 from ..detections import Detections
 
+__all__ = ["Stage", "StageContext"]
+
 
 @torch.jit.script
 class StageContext:
@@ -16,9 +18,7 @@ class StageContext:
         data: dict[str, torch.Tensor],
     ):
         self.frame = frame
-        self.matches = torch.full(
-            (num_tracks,), -1, dtype=torch.long, device=device
-        )
+        self.matches = torch.full((num_tracks,), -1, dtype=torch.long, device=device)
         self.dt = 1
 
         if data is None:
@@ -56,12 +56,7 @@ class Stage(torch.nn.Module):
     ):
         super().__init__()
 
-        # if required_fields is None:
-        #     required_fields = []
         self.required_fields: List[str] = required_fields
-
-        # if required_data is None:
-        #     required_data = []
         self.required_data: List[str] = required_data
 
     @torch.jit.unused

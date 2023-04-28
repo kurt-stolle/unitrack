@@ -5,6 +5,8 @@ from ..costs import CategoryGate, Cost
 from ..detections import Detections
 from .base_stage import Stage, StageContext
 
+__all__ = ["Association"]
+
 
 class Association(Stage):
     """

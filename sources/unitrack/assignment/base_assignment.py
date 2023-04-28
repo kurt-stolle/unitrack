@@ -2,6 +2,8 @@ from typing import Tuple
 
 import torch
 
+__all__ = ["Assignment"]
+
 
 class Assignment(torch.nn.Module):
     """
@@ -15,9 +17,7 @@ class Assignment(torch.nn.Module):
 
         self.threshold = threshold
 
-    def forward(
-        self, cost_matrix: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, cost_matrix: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Solve the cost matrix
 

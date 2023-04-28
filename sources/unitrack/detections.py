@@ -23,12 +23,6 @@ class Detections:
         self.mutable = mutable
 
         if indices is None:
-            # device: Optional[torch.device] = None
-            # for value in fields.values():
-            #     device = value.device
-            #     break
-            # if device is None:
-            #     raise ValueError("Failed to find detections device!")
             indices = torch.arange(len(self), dtype=torch.long)
         self.indices = indices
 

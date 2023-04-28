@@ -3,6 +3,8 @@ from typing import Tuple
 from ..detections import Detections
 from .base_stage import Stage, StageContext
 
+__all__ = ["Lost"]
+
 
 class Lost(Stage):
     """
@@ -31,9 +33,7 @@ class Lost(Stage):
 
         self.max_lost = max_lost
 
-    def forward(
-        self, ctx: StageContext, cs: Detections, ds: Detections
-    ) -> Tuple[Detections, Detections]:
+    def forward(self, ctx: StageContext, cs: Detections, ds: Detections) -> Tuple[Detections, Detections]:
         if len(cs) == 0:
             return cs, ds
 

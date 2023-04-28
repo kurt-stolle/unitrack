@@ -1,10 +1,15 @@
-from typing import Final, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import torch
 from torch import Tensor
 
 from ..detections import Detections
 from .base_cost import Cost
+
+_EPS = torch.finfo(torch.float32).eps
+
+
+__all__ = ["Distance", "Cosine"]
 
 
 class Distance(Cost):
@@ -70,16 +75,18 @@ class Cosine(Distance):
     """
     Computes the distance between two fields based on a similarity measure with
     range $[0,1]$ by computing $1 - S(x,y)$.
-
-    For example, a wrapped module could be ``torch.nn.CosineSimilarity``.
     """
+
+    def __init__(self, *args, eps: float = _EPS, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.eps = eps
 
     def compute(self, cs: Detections, ds: Detections):
         ts_field, ds_field = self.get_field(cs, ds)
-        return (1.0 - _cosine_similarity(ts_field, ds_field)) ** self.alpha
+        return (1.0 - _cosine_similarity(ts_field, ds_field, eps=self.eps)) ** self.alpha
 
 
-def _cosine_similarity(a: Tensor, b: Tensor) -> Tensor:
+def _cosine_similarity(a: Tensor, b: Tensor, eps=_EPS) -> Tensor:
     """
     Manual computation of the cosine similarity.
 
@@ -93,12 +100,12 @@ def _cosine_similarity(a: Tensor, b: Tensor) -> Tensor:
     Clamp with min(eps) for numerical stability. The final dot
     product is computed via transposed matrix multiplication (see `torch.mm`).
     """
-    a_norm = _stable_norm(a)
-    b_norm = _stable_norm(b)
+    a_norm = _stable_norm(a, eps=eps)
+    b_norm = _stable_norm(b, eps=eps)
 
     return torch.mm(a_norm, b_norm.T)
 
 
-def _stable_norm(t: torch.Tensor, eps=9e-4):
+def _stable_norm(t: torch.Tensor, eps=_EPS):
     norm = torch.linalg.vector_norm(t, dim=1, keepdim=True)
     return t / norm.clamp(min=eps)
