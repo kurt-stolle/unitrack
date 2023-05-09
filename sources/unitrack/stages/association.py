@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from ..assignment import Jonker
+from ..assignment import Assignment, Jonker
 from ..costs import CategoryGate, Cost
 from ..detections import Detections
 from .base_stage import Stage, StageContext
@@ -17,15 +17,17 @@ class Association(Stage):
     def __init__(
         self,
         cost: Cost,
-        threshold: float,
+        assignment: Assignment,
+        gate: CategoryGate,
+        **kwargs,
     ) -> None:
         super().__init__([], [])
 
         self.cost = cost
-        self.category_gate = CategoryGate()
-        self.assignment = Jonker(threshold=threshold)
+        self.gate = CategoryGate()
+        self.assignment = assignment
 
-        self._extend_required_fields(self.cost, self.category_gate)
+        self._extend_required_fields(self.cost, self.gate, self.assignment)
 
     def _extend_required_fields(self, *costs: Cost) -> None:
         for cost in costs:
@@ -35,8 +37,7 @@ class Association(Stage):
         if len(cs) == 0 or len(ds) == 0:
             return cs, ds
 
-        cost_matrix = self.cost(cs, ds)
-        cost_matrix *= self.category_gate(cs, ds)
+        cost_matrix = self.cost(cs, ds) * self.gate(cs, ds)
 
         matches, cs_fail, ds_fail = self.assignment(cost_matrix)
 
