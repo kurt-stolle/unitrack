@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from typing import Tuple
 
 import torch
@@ -12,11 +13,12 @@ class Assignment(torch.nn.Module):
 
     threshold: float
 
-    def __init__(self, threshold: float = 1.0):
+    def __init__(self, threshold: float = torch.inf):
         super().__init__()
 
         self.threshold = threshold
 
+    @torch.jit.script_if_tracing
     def forward(self, cost_matrix: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Solve the cost matrix
@@ -31,4 +33,23 @@ class Assignment(torch.nn.Module):
             Tuple of matches (N_match x M_match), unmatched columns and
             unmatched rows
         """
+
+        if min(cost_matrix.shape) == 0:
+            return self._no_match(cost_matrix)
+
+        cost_matrix = cost_matrix * (cost_matrix < self.threshold).type_as(cost_matrix)
+
+        return self._assign(cost_matrix)
+
+    @staticmethod
+    def _no_match(cost_matrix: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        cs_num, ds_num = cost_matrix.shape
+        return (
+            torch.empty((0, 2), dtype=torch.long),
+            torch.arange(cs_num, dtype=torch.long),
+            torch.arange(ds_num, dtype=torch.long),
+        )
+
+    @abstractmethod
+    def _assign(self, cost_matrix: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         raise NotImplementedError

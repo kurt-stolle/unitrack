@@ -1,6 +1,6 @@
 import torch
 
-from ..detections import Detections
+from ..structures import Detections
 from .base_cost import Cost
 
 __all__ = ["CategoryGate"]
@@ -13,10 +13,12 @@ class CategoryGate(Cost):
     `False`.
     """
 
+    field: torch.jit.Final[str]
+
     def __init__(self, field="categories"):
         super().__init__(required_fields=(field,))
 
-        self.field: str = field
+        self.field = field
 
     def compute(self, cs: Detections, ds: Detections) -> torch.Tensor:
         cs_cats = cs.get(self.field)
@@ -24,4 +26,4 @@ class CategoryGate(Cost):
 
         gate_matrix = ds_cats[None, :] - cs_cats[:, None]
 
-        return torch.where(gate_matrix == 0, 1.0, torch.inf)
+        return gate_matrix == 0

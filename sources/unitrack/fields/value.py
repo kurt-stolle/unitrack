@@ -21,7 +21,5 @@ class Value(Field):
         self.key = key
 
     @torch.jit.export
-    def extract(
-        self, kvmap: Dict[str, torch.Tensor], data: Dict[str, torch.Tensor]
-    ) -> torch.Tensor:
+    def extract(self, kvmap: Dict[str, torch.Tensor], data: Dict[str, torch.Tensor]) -> torch.Tensor:
         return kvmap[self.key]

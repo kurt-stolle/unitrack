@@ -1,12 +1,31 @@
+import enum
+import itertools
 from enum import Enum
-from typing import Optional, Sequence
+from typing import Callable, Optional, Sequence
 
 import torch
 import torch.nn as nn
 from torch import Tensor
 
-from .. import Detections
+from ..structures import Detections
 from .base_cost import Cost
+
+__all__ = ["Reduce", "Reduction"]
+
+
+class Weighted(Cost):
+    """
+    A weighted cost module.
+    """
+
+    def __init__(self, cost: Cost, weight: float):
+        super().__init__(required_fields=cost.required_fields)
+
+        self.cost = cost
+        self.weight = weight
+
+    def compute(self, cs: Detections, ds: Detections) -> torch.Tensor:
+        return self.weight * self.cost(cs, ds)
 
 
 class Reduction(Enum):
@@ -19,46 +38,50 @@ class Reduction(Enum):
     MIN = "min"
     MAX = "max"
     PRODUCT = "product"
-    
 
 
 class Reduce(Cost):
     """
-    A weighted cost reduction module.
+    A cost reduction module.
     """
 
     weights: torch.Tensor
+    method: torch.jit.Final[Reduction]
 
     def __init__(
         self,
         costs: Sequence[Cost],
+        method: Reduction,
         weights: Optional[Sequence[float]] = None,
-        reduction: Reduction | str = Reduction.SUM,
     ):
-        super().__init__(required_fields=tuple(set().union(c.required_fields for c in costs)))
+        super().__init__(required_fields=itertools.chain(*(c.required_fields for c in costs)))
 
-        if isinstance(reduction, str):
-            reduction = Reduction(reduction)
+        if isinstance(method, str):
+            method = Reduction(method)
 
-        self.reduction = reduction
+        self.method = method
         self.costs = nn.ModuleList(costs)
-
         if weights is None:
             weights = [1.0] * len(costs)
-        self.register_buffer("weights", torch.tensor(weights, dtype=torch.float32))
+
+        self.register_buffer("weights", torch.tensor(weights, dtype=torch.float32).unsqueeze_(-1).unsqueeze_(-1))
 
     def compute(self, cs: Detections, ds: Detections) -> torch.Tensor:
-        costs = torch.stack([w * cost(cs, ds) for w, cost in zip(self.weights, self.costs)])
+        costs = torch.stack([cost(cs, ds) for cost in self.costs])
+        costs = costs * self.weights
+        costs = _reduce_stack(costs, self.method)
 
-        return self._reduce(costs)
+        return costs
 
-    def _reduce(self, costs: Tensor) -> Tensor:
-        if self.reduction == Reduction.SUM:
-            return costs.sum(dim=0)
-        if self.reduction == Reduction.MEAN:
-            return costs.mean(dim=0)
-        if self.reduction == Reduction.MIN:
-            return costs.min(dim=0).values
-        if self.reduction == Reduction.MAX:
-            return costs.max(dim=0).values
-        raise ValueError(f"Unknown reduction: {self.reduction}!")
+
+@torch.jit.script_if_tracing
+def _reduce_stack(costs: Tensor, method: Reduction) -> Tensor:
+    if method == Reduction.SUM:
+        return costs.sum(dim=0)
+    if method == Reduction.MEAN:
+        return costs.mean(dim=0)
+    if method == Reduction.MIN:
+        return costs.min(dim=0).values
+    if method == Reduction.MAX:
+        return costs.max(dim=0).values
+    raise NotImplementedError(f"Reduction method '{method}' not implemented!")

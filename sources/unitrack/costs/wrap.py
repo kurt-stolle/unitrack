@@ -3,7 +3,7 @@ from typing import List, Optional, Tuple
 import torch
 from torch import Tensor
 
-from ..detections import Detections
+from ..structures import Detections
 from .base_cost import Cost
 
 _EPS = torch.finfo(torch.float32).eps

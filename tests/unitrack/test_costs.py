@@ -1,9 +1,21 @@
-
 import torch
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from unitrack import Detections, costs
+
+
+def test_reduced():
+    red = costs.Reduce(
+        costs=[
+            costs.CategoryGate(),
+            costs.CategoryGate(),
+        ],
+        method=costs.Reduction.SUM,
+    )
+    res = red(Detections({"categories": torch.arange(3)}), Detections({"categories": torch.arange(3)}))
+    assert res.shape == (3, 3), res.shape
+    assert res.diag().sum() == 6.0, res.diag().sum()
 
 
 @settings(deadline=None)
@@ -27,14 +39,10 @@ def test_category_gate(cs_num, ds_num):
     assert gate_diag.sum() == 1.0 * min(ds_num, cs_num), gate_diag
 
     if cs_num > 1 and ds_num > 1:
-        gate_max = gate_matrix.max()
-        gate_min = gate_matrix.min()
-        assert gate_max.max() == torch.inf, gate_max
-        assert gate_min == 1.0, gate_min
+        assert gate_matrix.any()
+        assert not gate_matrix.all()
     elif cs_num == 1 and ds_num == 1:
-        gate_max = gate_matrix.max()
-        gate_min = gate_matrix.min()
-        assert gate_min == gate_max == 1.0, (gate_min, gate_max)
+        assert gate_matrix.all()
 
 
 @settings(deadline=None)
@@ -106,4 +114,3 @@ def test_mask_iou():
     assert cost_shape == (len(cs), len(ds)), cost_shape
 
     print(cost_matrix)
-

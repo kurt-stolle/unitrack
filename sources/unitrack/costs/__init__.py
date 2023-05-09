@@ -6,4 +6,5 @@ tracklets and detections.
 from .base_cost import *
 from .category import *
 from .iou import *
+from .reduce import *
 from .wrap import *

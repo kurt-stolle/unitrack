@@ -5,14 +5,13 @@ import torch
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from unitrack import Detections, costs, stages
+from unitrack import Detections, assignment, costs, stages
 
 
 @pytest.mark.parametrize("jit", [False, True])
 def test_lost_stage(jit):
     for num_frames in range(1, 10):
         for max_lost in range(1, num_frames):
-
             stage_lost = stages.Lost(max_lost=max_lost)
             if jit:
                 stage_lost = torch.jit.script(stage_lost)
@@ -24,9 +23,7 @@ def test_lost_stage(jit):
                 data={},
             )
 
-            cs = Detections(
-                {"_frame": torch.arange(num_frames, dtype=torch.long)}
-            )
+            cs = Detections({"_frame": torch.arange(num_frames, dtype=torch.long)})
             ds = Detections({"_frame": torch.empty((0,), dtype=torch.long)})
 
             assert len(cs) == num_frames, cs
@@ -36,9 +33,7 @@ def test_lost_stage(jit):
 
             assert len(cs) == num_frames - max_lost, cs
             assert len(ds) == 0, ds
-            assert torch.all(
-                torch.arange(num_frames - max_lost) == cs._frame
-            ), cs._frame
+            assert torch.all(torch.arange(num_frames - max_lost) == cs._frame), cs._frame
 
 
 @pytest.mark.parametrize("jit", [False, True])
@@ -65,16 +60,14 @@ def test_association_stage(cs_num: int, ds_num: int, jit):
     assert len(ds) == ds_num, ds
 
     cost = costs.Distance(field="x")
-    ass_stage = stages.Association(cost, torch.inf)
+    ass_stage = stages.Association(cost, assignment.Greedy(torch.inf))
 
     if jit:
         ass_stage = cast(stages.Association, torch.jit.script(ass_stage))
 
     ass_num = min(cs_num, ds_num)
 
-    ctx = stages.StageContext(
-        frame=3, num_tracks=ds_num, device=torch.device("cpu"), data={}
-    )
+    ctx = stages.StageContext(frame=3, num_tracks=ds_num, device=torch.device("cpu"), data={})
     cs, ds = ass_stage(ctx, cs, ds)
 
     assert len(cs) == cs_num - ass_num

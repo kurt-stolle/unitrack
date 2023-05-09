@@ -19,9 +19,7 @@ class Value(State):
         if not isinstance(dtype, torch.dtype):
             raise ValueError(f"No a valid data type: {dtype}!")
 
-        self.register_buffer(
-            "values", torch.empty(0, dtype=dtype), persistent=False
-        )
+        self.register_buffer("values", torch.empty(0, dtype=dtype), persistent=False)
 
     @torch.jit.export
     def update(self, values: torch.Tensor) -> None:
@@ -53,9 +51,7 @@ class MeanValues(State):
         super().__init__(id)
 
         self.window = window
-        self.register_buffer(
-            "values_history", torch.zeros((0,)), persistent=False
-        )
+        self.register_buffer("values_history", torch.zeros((0,)), persistent=False)
 
     @torch.jit.export
     def update(self, values: torch.Tensor) -> None:

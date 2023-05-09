@@ -2,6 +2,8 @@ from typing import Any, Dict, Optional
 
 import torch
 
+__all__ = ["Detections"]
+
 
 @torch.jit.script
 class Detections:

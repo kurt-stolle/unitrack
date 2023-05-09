@@ -14,9 +14,7 @@ class Field(torch.nn.Module):
 
     id: str
 
-    def __init__(
-        self, id: str, required_keys: List[str], required_data: List[str]
-    ):
+    def __init__(self, id: str, required_keys: List[str], required_data: List[str]):
         """
         Parameters
         ----------
@@ -32,14 +30,12 @@ class Field(torch.nn.Module):
         self.required_keys = required_keys
         self.required_data = required_data
 
-    def forward(
-        self, kvmap: Dict[str, torch.Tensor], data: Dict[str, torch.Tensor]
-    ):
-        self.validate_kvmap(kvmap)
+    def forward(self, kvmap: Dict[str, torch.Tensor], data: Dict[str, torch.Tensor]):
+        # self.validate_kvmap(kvmap)
         # self.validate_data(data)
         return self.extract(kvmap, data)
 
-    @torch.jit.ignore
+    @torch.jit.unused
     def __repr__(self) -> str:
         req = ", ".join(self.required_keys)
         return f"{type(self).__name__}({self.id}, " f"data=[{req}])"
@@ -83,9 +79,7 @@ class Field(torch.nn.Module):
             raise ValueError(f"Data with key '{key}' not found!")
 
     @abstractmethod
-    def extract(
-        self, kvmap: Dict[str, torch.Tensor], data: Dict[str, torch.Tensor]
-    ) -> torch.Tensor:
+    def extract(self, kvmap: Dict[str, torch.Tensor], data: Dict[str, torch.Tensor]) -> torch.Tensor:
         """
         Extract field values from data.
 

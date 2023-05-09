@@ -1,4 +1,3 @@
-from abc import abstractmethod
 from typing import Any
 
 import torch
@@ -12,7 +11,7 @@ class State(torch.nn.Module):
 
         self.id = id
 
-    @torch.jit.ignore
+    @torch.jit.unused
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.id})"
 
@@ -50,7 +49,7 @@ class State(torch.nn.Module):
         raise NotImplementedError
 
     @torch.jit.export
-    def observe() -> torch.Tensor:
+    def observe(self) -> torch.Tensor:
         """
         Observe the current (predicted) state.
 

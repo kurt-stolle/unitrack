@@ -1,6 +1,8 @@
 from typing import Tuple
 
-from ..detections import Detections
+import torch
+
+from ..structures import Detections
 from .base_stage import Stage, StageContext
 
 __all__ = ["Lost"]
@@ -18,6 +20,8 @@ class Lost(Stage):
     being updated to the current time, as the state update is performed
     *after* all stages have been ran.
     """
+
+    max_lost: torch.jit.Final[int]
 
     def __init__(self, max_lost: int):
         """

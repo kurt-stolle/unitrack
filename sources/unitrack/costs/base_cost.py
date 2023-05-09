@@ -1,26 +1,27 @@
 from abc import abstractmethod
-from typing import Optional, Sequence
+from typing import Iterable, Optional, Sequence
 
 import torch
-from torch import Tensor, nn
 
-from ..detections import Detections
+from ..structures import Detections
 
-__all__ = ["Cost", "WeightedReduce"]
+__all__ = ["Cost"]
 
 
-class Cost(nn.Module):
+class Cost(torch.nn.Module):
     """
     A cost module computes an assignment cost matrix between detections and
     tracklets.
     """
 
-    def __init__(self, required_fields: tuple[str]):
+    required_fields: torch.jit.Final[list[str]]
+
+    def __init__(self, required_fields: Iterable[str]):
         super().__init__()
 
-        self.required_fields = required_fields
+        self.required_fields = list(set(required_fields))
 
-    def forward(self, cs: Detections, ds: Detections) -> Tensor:
+    def forward(self, cs: Detections, ds: Detections) -> torch.Tensor:
         for field_name in self.required_fields:
             if field_name not in cs:
                 raise ValueError(f"Missing field '{field_name}' in trackets: {cs}!")
@@ -30,7 +31,7 @@ class Cost(nn.Module):
         return self.compute(cs, ds)
 
     @abstractmethod
-    def compute(self, cs: Detections, ds: Detections) -> Tensor:
+    def compute(self, cs: Detections, ds: Detections) -> torch.Tensor:
         """
         Computes the assignment costs between :class:`.Tracklets` and
         :class:`.Detections`.
@@ -49,4 +50,3 @@ class Cost(nn.Module):
             Cost matrix
         """
         raise NotImplementedError
-

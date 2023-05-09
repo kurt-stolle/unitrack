@@ -1,10 +1,10 @@
-from typing import Dict, Final, List, Optional
+from typing import Final, List, Optional
 
 import torch
 
-from .detections import Detections
 from .states import State
 from .states import Value as ValueState
+from .structures import Detections
 from .tracker import TrackerResult
 
 __all__ = ["Tracklets"]

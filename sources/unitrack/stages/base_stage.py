@@ -1,9 +1,9 @@
 from abc import abstractmethod
-from typing import List, NamedTuple, Optional, Sequence, Tuple
+from typing import Iterable, List, Tuple
 
 import torch
 
-from ..detections import Detections
+from ..structures import Detections
 
 __all__ = ["Stage", "StageContext"]
 
@@ -46,24 +46,25 @@ class Stage(torch.nn.Module):
     Inputs to a stage are in the context data, or as fields of the detections.
     """
 
-    required_fields: List[str]
-    required_data: List[str]
+    required_fields: torch.jit.Final[List[str]]
+    required_data: torch.jit.Final[List[str]]
 
     def __init__(
         self,
-        required_fields: List[str],
-        required_data: List[str],
+        required_fields: Iterable[str],
+        required_data: Iterable[str],
     ):
         super().__init__()
 
-        self.required_fields: List[str] = required_fields
-        self.required_data: List[str] = required_data
+        self.required_fields = list(required_fields)
+        self.required_data = list(required_data)
 
     @torch.jit.unused
     def __repr__(self) -> str:
         req = ", ".join(self.required_fields)
         return f"{type(self).__name__}(fields=[{req}])"
 
+    @abstractmethod
     def forward(
         self,
         ctx: StageContext,
@@ -71,4 +72,3 @@ class Stage(torch.nn.Module):
         ds: Detections,
     ) -> Tuple[Detections, Detections]:
         raise NotImplementedError
-        return self.run(ctx, cs, ds)

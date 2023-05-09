@@ -10,10 +10,11 @@ __all__ = ["Jonker"]
 
 
 class Jonker(Assignment):
-    def forward(self, cost_matrix: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def _assign(self, cost_matrix: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         return self.linear_assignment(cost_matrix)
 
-    @torch.jit.ignore
+    @torch.jit.ignore()
+    @torch.no_grad()
     def linear_assignment(self, cost_matrix: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Perform linear assignment. If possible, an assignment on the diagonal of the
@@ -24,19 +25,11 @@ class Jonker(Assignment):
         """
 
         cost_matrix = cost_matrix.detach().cpu().numpy()
-        cs_num, ds_num = cost_matrix.shape
 
-        # Skip when cost_matrix has 0-dimension
-        if cost_matrix.size == 0:
-            return (
-                torch.empty((0, 2), dtype=torch.long),
-                torch.arange(cs_num, dtype=torch.long),
-                torch.arange(ds_num, dtype=torch.long),
-            )
         matches, unmatched_a, unmatched_b = [], [], []
 
         # Jonker algorithm, i.e. linear sum assignment (rows) -> (cols)
-        cost, x, y = lapjv(cost_matrix, extend_cost=True, cost_limit=self.threshold)
+        cost, x, y = lapjv(cost_matrix, extend_cost=True)
 
         # Create match and unassigned lists
         for ix, mx in enumerate(x):

@@ -4,9 +4,9 @@ from warnings import warn
 import torch
 import torch.nn as nn
 
-from .detections import Detections
 from .fields import Field
 from .stages import Stage, StageContext
+from .structures import Detections
 
 
 class TrackerResult(NamedTuple):
