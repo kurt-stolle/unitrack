@@ -48,9 +48,9 @@ def greedy_assignment(cost_matrix: torch.Tensor) -> Tuple[torch.Tensor, torch.Te
 
     """
     N, M = cost_matrix.shape
-    matches = torch.full((min(N, M), 2), -1, dtype=torch.long)
-    unmatched_rows = torch.arange(N)
-    unmatched_cols = torch.arange(M)
+    matches = torch.full((min(N, M), 2), -1, dtype=torch.long, device=cost_matrix.device)
+    unmatched_rows = torch.arange(N, dtype=torch.long, device=cost_matrix.device)
+    unmatched_cols = torch.arange(M, dtype=torch.long, device=cost_matrix.device)
 
     match_count = 0
     while True:
@@ -60,13 +60,13 @@ def greedy_assignment(cost_matrix: torch.Tensor) -> Tuple[torch.Tensor, torch.Te
         if not torch.isfinite(min_val):
             break
 
-        matches[match_count] = torch.tensor([row, col])
+        matches[match_count] = torch.tensor([row, col], dtype=torch.long, device=cost_matrix.device)
         match_count += 1
 
         cost_matrix[row, :] = torch.inf
         cost_matrix[:, col] = torch.inf
 
-    unmatched_rows = unmatched_rows[~torch.isfinite(cost_matrix[:, 0])]
-    unmatched_cols = unmatched_cols[~torch.isfinite(cost_matrix[0, :])]
+    unmatched_rows = unmatched_rows[torch.isfinite(cost_matrix[:, 0])]
+    unmatched_cols = unmatched_cols[torch.isfinite(cost_matrix[0, :])]
 
     return matches[:match_count], unmatched_rows, unmatched_cols
