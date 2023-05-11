@@ -12,9 +12,7 @@ class Field(torch.nn.Module):
     object.
     """
 
-    id: str
-
-    def __init__(self, id: str, required_keys: List[str], required_data: List[str]):
+    def __init__(self, required_keys: List[str], required_data: List[str]):
         """
         Parameters
         ----------
@@ -26,7 +24,6 @@ class Field(torch.nn.Module):
 
         super().__init__()
 
-        self.id = id
         self.required_keys = required_keys
         self.required_data = required_data
 

@@ -12,11 +12,8 @@ class Value(Field):
     A :class:`.Field` that copies its value directly from the input data.
     """
 
-    def __init__(self, id: str, key: Optional[str] = None):
-        if key is None:
-            key = id
-
-        super().__init__(id, required_keys=[key], required_data=[])
+    def __init__(self, key: str):
+        super().__init__(required_keys=[key], required_data=[])
 
         self.key = key
 

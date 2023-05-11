@@ -1,4 +1,4 @@
-from typing import Dict, List, NamedTuple, Optional, cast
+from typing import Dict, List, Mapping, NamedTuple, Optional, cast
 from warnings import warn
 
 import torch
@@ -21,13 +21,13 @@ class Tracker(nn.Module):
     module.
     """
 
-    def __init__(self, fields: List[Field], stages: List[Stage]):
+    def __init__(self, fields: Mapping[str, Field], stages: List[Stage]):
         super().__init__()
 
         assert len(stages) > 0
 
         self.stages = cast(List[Stage], nn.ModuleList(stages))
-        self.fields = cast(Dict[str, Field], nn.ModuleDict({field.id: field for field in fields}))
+        self.fields = cast(Dict[str, Field], nn.ModuleDict({**fields}))
 
         self._validate()
 

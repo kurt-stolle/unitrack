@@ -6,7 +6,7 @@ from lap import lapjv
 
 from .base_assignment import Assignment
 
-__all__ = ["Jonker"]
+__all__ = ["Jonker", "jonker_volgenant_assignment"]
 
 
 class Jonker(Assignment):
