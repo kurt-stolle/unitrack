@@ -3,7 +3,9 @@ from typing import cast
 import pytest
 import torch
 
-from unitrack import Tracker, Tracklets, costs, fields, stages, states
+from unitrack import (
+    Tracker, Tracklets, assignment, costs, fields, stages, states,
+)
 
 
 @pytest.mark.parametrize("jit", [False, True])
@@ -18,20 +20,20 @@ def test_tracker(jit):
     ]
 
     tracker = Tracker(
-        fields=[
-            fields.Value(id="pos", key="pos_key"),
-            fields.Value(id="categories", key="pred_class"),
-        ],
-        stages=[stages.Association(cost=costs.Distance("pos"), threshold=999999)],
+        fields={
+            "pos": fields.Value(key="pos_key"),
+            "categories": fields.Value(key="pred_class"),
+        },
+        stages=[stages.Association(cost=costs.Distance("pos"), assignment=assignment.Jonker(999999))],
     )
     if jit:
         tracker = cast(Tracker, torch.jit.script(tracker))  # type: ignore
 
     tracks = Tracklets(
-        states=[
-            states.Value(id="pos", dtype=dtype),
-            states.Value(id="categories", dtype=torch.long),
-        ]
+        states={
+            "pos": states.Value(dtype),
+            "categories": states.Value(dtype=torch.long),
+        }
     )
     if jit:
         tracks = cast(Tracklets, torch.jit.script(tracks))  # type: ignore
@@ -42,7 +44,7 @@ def test_tracker(jit):
         res = tracker(frame, state_obs, kvmap, {})
         assert len(res.matches) == len(kvmap["pos_key"])
 
-        ids = tracks("seq", frame, res)
+        ids = tracks(frame, res)
 
         assert len(ids) == len(kvmap["pos_key"])
         assert torch.all(ids == torch.arange(len(kvmap["pos_key"]), dtype=torch.long) + 1)

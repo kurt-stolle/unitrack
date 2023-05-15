@@ -7,11 +7,11 @@ from unitrack import fields
 
 
 @pytest.mark.parametrize("jit", [False, True])
-@pytest.mark.parametrize("dtype", (torch.float32, torch.long, torch.float32))
+@pytest.mark.parametrize("dtype", (torch.float32, torch.long, torch.float16, torch.int32, torch.bool))
 def test_value_field(dtype, jit):
     data_key = "data_key"
 
-    value_field = fields.Value(id=data_key)
+    value_field = fields.Value(key=data_key)
     if jit:
         value_field = cast(fields.Value, torch.jit.script(value_field))
 

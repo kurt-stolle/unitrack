@@ -1,4 +1,4 @@
-from typing import Final, List, Optional
+from typing import Final, Mapping
 
 import torch
 
@@ -26,55 +26,34 @@ class Tracklets(torch.nn.Module):
     state_start: Final = "_start"
     state_active: Final = "_active"
 
-    frame: int
-    count: int
-    sequence_id: Optional[str]
+    frame: torch.Tensor
+    count: torch.Tensor
     max_id: int
 
-    def __init__(self, states: List[State], max_id=1000):
+    def __init__(self, states: Mapping[str, State], max_id=1000):
         super().__init__()
 
         assert max_id > 0, max_id
         assert len(states) > 0, len(states)
 
         self.max_id = max_id
-        self.states = torch.nn.ModuleDict(
-            {
-                state.id: state
-                for state in (
-                    ValueState(id=self.state_frame, dtype=torch.int),
-                    ValueState(id=self.state_start, dtype=torch.int),
-                    ValueState(id=self.state_id, dtype=torch.int),
-                    ValueState(id=self.state_active, dtype=torch.bool),
-                    *states,
-                )
-            }
-        )
+        self.states = torch.nn.ModuleDict()
+        self.states[self.state_frame] = ValueState(torch.int)
+        self.states[self.state_start] = ValueState(torch.int)
+        self.states[self.state_id] = ValueState(torch.int)
+        self.states[self.state_active] = ValueState(torch.bool)
+        self.states.update(states)
 
-        self.frame = -1
-        self.count = 0
-        self.sequence_id = None
+        self.register_buffer("frame", torch.tensor(-1, dtype=torch.int, requires_grad=False))
+        self.register_buffer("count", torch.tensor(0, dtype=torch.int, requires_grad=False))
 
     def __len__(self) -> int:
-        return self.count
+        return int(self.count.detach().cpu().item())
 
-    def forward(self, sequence_id: str, frame: int, res: TrackerResult) -> torch.Tensor:
+    def forward(self, frame: int, res: TrackerResult) -> torch.Tensor:
         """
         Update the ``Tracklets`` at a given frame with new state data from
         detections.
-
-        Parameters
-        ----------
-        frame
-            Current frame.
-        put
-            Detections that are put into the current state.
-        new
-            Detections that are newly added to the state.
-
-        Returns
-        -------
-            New states.
         """
 
         assert res.update.indices.dtype == torch.int64, res.update.indices.dtype
@@ -93,9 +72,8 @@ class Tracklets(torch.nn.Module):
         if res.extend.mutable:
             raise ValueError("Updated additions should not be a mutable collection!")
 
-        self.frame = frame
+        self.frame.fill_(frame)
         self.count += 1
-        self.sequence_id = sequence_id
 
         # Pull IDs from update for each detection in the tracker result
         detection_ids = torch.zeros_like(res.matches, dtype=torch.int)
@@ -152,9 +130,8 @@ class Tracklets(torch.nn.Module):
         """
         Reset the states of this ``Tracklets`` module.
         """
-        self.frame = -1
-        self.count = 0
-        self.sequence_id = None
+        self.frame.fill_(-1)
+        self.count.fill_(0)
 
         for state in self.states.values():
             state.reset()  # type: ignore

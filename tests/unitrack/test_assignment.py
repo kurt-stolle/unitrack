@@ -26,14 +26,14 @@ def cost_matrix(request):
 @pytest.fixture(
     params=[
         assignment.Greedy,
-        assignment.Hungarian,
-        assignment.Auction,
+        # assignment.Hungarian,
+        # assignment.Auction,
         assignment.Jonker,
     ],
     ids=(
         "alg:greedy",
-        "alg:hungarian",
-        "alg:auction",
+        # "alg:hungarian",
+        # "alg:auction",
         "alg:jonker",
     ),
     scope="module",

@@ -4,17 +4,6 @@ import torch
 
 
 class State(torch.nn.Module):
-    id: str
-
-    def __init__(self, id: str):
-        super().__init__()
-
-        self.id = id
-
-    @torch.jit.unused
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.id})"
-
     @torch.jit.export
     def update(self, value: Any) -> None:
         """
