@@ -1,9 +1,11 @@
 from typing import Tuple
 
 import torch
+from tensordict import TensorDictBase
 
-from ..structures import Detections
-from .base_stage import Stage, StageContext
+from ..constants import KEY_FRAME
+from ..context import Context
+from .base_stage import Stage
 
 __all__ = ["Lost"]
 
@@ -37,10 +39,10 @@ class Lost(Stage):
 
         self.max_lost = max_lost
 
-    def forward(self, ctx: StageContext, cs: Detections, ds: Detections) -> Tuple[Detections, Detections]:
+    def forward(self, ctx: Context, cs: TensorDictBase, ds: TensorDictBase) -> Tuple[TensorDictBase, TensorDictBase]:
         if len(cs) == 0:
             return cs, ds
 
-        time_lost = ctx.frame - cs.get("_frame") - ctx.dt
+        time_lost = ctx.frame - cs.get(KEY_FRAME) - ctx.delta
 
-        return cs[time_lost > self.max_lost], ds
+        return cs.get_sub_tensordict(time_lost > self.max_lost), ds

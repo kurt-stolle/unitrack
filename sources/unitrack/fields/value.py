@@ -2,6 +2,7 @@ from typing import Dict, Optional
 
 import torch
 
+from ..context import Context
 from .base_field import Field
 
 __all__ = ["Value"]
@@ -18,5 +19,5 @@ class Value(Field):
         self.key = key
 
     @torch.jit.export
-    def extract(self, kvmap: Dict[str, torch.Tensor], data: Dict[str, torch.Tensor]) -> torch.Tensor:
-        return kvmap[self.key]
+    def extract(self, ctx: Context) -> torch.Tensor:
+        return ctx.detections.get(self.key)

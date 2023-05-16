@@ -1,9 +1,11 @@
 from typing import Tuple
 
+from tensordict import TensorDictBase
+
 from ..assignment import Assignment
+from ..context import Context
 from ..costs import Cost
-from ..structures import Detections
-from .base_stage import Stage, StageContext
+from .base_stage import Stage
 
 __all__ = ["Association"]
 
@@ -30,16 +32,21 @@ class Association(Stage):
         for cost in costs:
             self.required_fields += cost.required_fields
 
-    def forward(self, ctx: StageContext, cs: Detections, ds: Detections) -> Tuple[Detections, Detections]:
+    def forward(self, ctx: Context, cs: TensorDictBase, ds: TensorDictBase) -> Tuple[TensorDictBase, TensorDictBase]:
         if len(cs) == 0 or len(ds) == 0:
             return cs, ds
 
         cost_matrix = self.cost(cs, ds)
 
-        matches, cs_fail, ds_fail = self.assignment(cost_matrix)
+        matches, cs_fail_idx, ds_fail_idx = self.assignment(cost_matrix)
 
         if len(matches) > 0:
-            # idx_t, idx_d = matches.T
-            ctx.match(cs[matches[:, 0]], ds[matches[:, 1]])
+            cs_match = cs.get_sub_tensordict(matches[:, 0])
+            ds_match = ds.get_sub_tensordict(matches[:, 1])
 
-        return cs[cs_fail], ds[ds_fail]
+            ctx.match(cs_match, ds_match)
+
+        cs_fail = cs.get_sub_tensordict(cs_fail_idx)
+        ds_fail = ds.get_sub_tensordict(ds_fail_idx)
+
+        return cs_fail, ds_fail

@@ -2,41 +2,11 @@ from abc import abstractmethod
 from typing import Iterable, List, Tuple
 
 import torch
+from tensordict import TensorDictBase
 
-from ..structures import Detections
+from ..context import Context
 
-__all__ = ["Stage", "StageContext"]
-
-
-@torch.jit.script
-class StageContext:
-    def __init__(
-        self,
-        frame: int,
-        num_tracks: int,
-        device: torch.device,
-        data: dict[str, torch.Tensor],
-    ):
-        self.frame = frame
-        self.matches = torch.full((num_tracks,), -1, dtype=torch.long, device=device)
-        self.dt = 1
-
-        if data is None:
-            data = {}
-        self.data = data
-
-    def match(self, cs: Detections, ds: Detections) -> None:
-        """
-        Match candidates to detections.
-
-        Parameters
-        ----------
-        cs
-            Candidates
-        ds
-            Detections
-        """
-        self.matches[ds.indices] = cs.indices
+__all__ = ["Stage"]
 
 
 class Stage(torch.nn.Module):
@@ -67,8 +37,8 @@ class Stage(torch.nn.Module):
     @abstractmethod
     def forward(
         self,
-        ctx: StageContext,
-        cs: Detections,
-        ds: Detections,
-    ) -> Tuple[Detections, Detections]:
+        ctx: Context,
+        cs: TensorDictBase,
+        ds: TensorDictBase,
+    ) -> Tuple[TensorDictBase, TensorDictBase]:
         raise NotImplementedError

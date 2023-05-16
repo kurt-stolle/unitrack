@@ -1,24 +1,18 @@
-from typing import Dict, List, Mapping, NamedTuple, Optional, cast
-from warnings import warn
+from typing import Dict, List, Mapping, Tuple, cast
 
 import torch
 import torch.nn as nn
+from tensordict import TensorDict, TensorDictBase
 
+from .constants import KEY_ACTIVE, KEY_FRAME, KEY_ID, KEY_INDEX, KEY_START
+from .context import Context
 from .fields import Field
-from .stages import Stage, StageContext
-from .structures import Detections
+from .stages import Stage
 
 
-class TrackerResult(NamedTuple):
-    update: Detections
-    extend: Detections
-    matches: torch.Tensor
-
-
-class Tracker(nn.Module):
+class MultiStageTracker(nn.Module):
     """
-    Tracker is a module that transforms detections into a :class:`.Tracklets`
-    module.
+    Multi-stage tracker that applies a cascade of stages to a set of detections.
     """
 
     def __init__(self, fields: Mapping[str, Field], stages: List[Stage]):
@@ -33,9 +27,6 @@ class Tracker(nn.Module):
 
     def _validate(self):
         for i, stage in enumerate(self.stages):
-            if not isinstance(stage, Stage):
-                warn(f"Stage {i} is not an instance of `Stage`.")
-                continue
             for id in stage.required_fields:
                 if id not in self.fields:
                     raise ValueError(f"Field with ID '{id}' missing for {stage}!")
@@ -54,72 +45,45 @@ class Tracker(nn.Module):
 
     def forward(
         self,
-        frame: int,
-        states: Detections,
-        kvmap: dict[str, torch.Tensor],
-        data: dict[str, torch.Tensor],
-    ) -> TrackerResult:
-        assert frame >= 0, frame
+        ctx: Context,
+        obs: TensorDictBase,
+    ) -> Tuple[TensorDictBase, TensorDictBase]:
+        """
+        Perform tracking, returns a tuple of updated observations and the field-values of new tracklets.
 
-        # Create detections through each field
-        detections = self._apply_fields(kvmap, data)
+        Parameters
+        ----------
+        ctx
+            Context object
+        obs
+            Observations
+        det
+            Detections
 
-        # Create context
-        ctx = StageContext(
-            frame=frame,
-            num_tracks=len(detections),
-            device=detections.indices.device,
-            data=data,
-        )
+        Returns
+        -------
+        Tuple[TensorDict, TensorDict]
+            Updated observations and field-values of new tracklets.
+        """
 
-        # Apply stage cascade
-        return self._apply_stages(ctx, states, detections)
+        new = self._apply_fields(ctx)
+        obs, new = self._apply_stages(ctx, obs, new)
 
-    def _apply_fields(self, kvmap: dict[str, torch.Tensor], data: dict[str, torch.Tensor]) -> Detections:
-        items = {key: field(kvmap, data) for key, field in self.fields.items()}
-        return Detections(items)  # type: ignore
+        return obs, new
 
-    def _apply_stages(self, ctx: StageContext, states: Detections, detections: Detections) -> TrackerResult:
-        # Sanity check
-        obs_frames = states.get("_start")
-        if not torch.all(obs_frames < ctx.frame):
-            frame_list: List[int] = obs_frames.tolist()
-            raise ValueError(f"Attempted to track at frame {ctx.frame} while `Tracklets` " f"has frames {frame_list}")
+    def _apply_fields(self, ctx: Context) -> TensorDictBase:
+        items = {key: field(ctx) for key, field in self.fields.items()}
+        items[KEY_INDEX] = torch.arange(len(ctx.ids), device=ctx.ids.device)
+        return TensorDict(items, batch_size=ctx.ids.shape, device=ctx.ids.device)  # type: ignore
 
-        # Select candidates based on active flag
-        cs = states[states.get("_active")]
-        ds = detections
-        assert not cs.mutable
+    def _apply_stages(
+        self, ctx: Context, obs: TensorDictBase, new: TensorDictBase
+    ) -> Tuple[TensorDictBase, TensorDictBase]:
+        obs_candidates = obs.get_sub_tensordict(obs.get(KEY_ACTIVE))
         for stage in self.stages:
-            cs, ds = stage(ctx, cs, ds)
+            obs_candidates, new = stage(ctx, obs_candidates, new)
 
-        # Handle remaining candidates
-        if len(cs) > 0:
-            # Update state to inactive
-            active = states.get("_active").clone()
-            # active[cs.indices] = torch.full_like(
-            #     cs.indices, False, dtype=torch.bool
-            # )
-            active[cs.indices] = False
+        if len(obs_candidates) > 0 and obs_candidates.batch_size[0] > 0:
+            obs_candidates.fill_(KEY_ACTIVE, False)
 
-            states.set("_active", active)
-
-        # Update matched detections -> candidates
-        if ctx.matches.sum() > 0:
-            obs_indices = ctx.matches[ctx.matches >= 0]
-            ds_matched = detections[ctx.matches >= 0]
-
-            # Update states that match a field name
-            for key in self.fields.keys():
-                if key in states:
-                    measurements = states.get(key).clone()
-                    measurements[obs_indices] = ds_matched.get(key)
-                    states.set(key, measurements)
-
-            # Update frame number
-            frames = states.get("_frame").clone()
-            frames[obs_indices].fill_(ctx.frame)
-
-            states.set("_frame", frames)
-
-        return TrackerResult(update=states, extend=ds, matches=ctx.matches)
+        return obs, new

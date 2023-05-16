@@ -1,15 +1,15 @@
-from typing import List, Optional, Tuple
+from typing import Final, List, Optional, Tuple
 
 import torch
+from tensordict import TensorDictBase
 from torch import Tensor
 
-from ..structures import Detections
 from .base_cost import Cost
 
-_EPS = torch.finfo(torch.float32).eps
-
-
 __all__ = ["Distance", "Cosine"]
+
+
+DEFAULT_EPS: Final = 1e-8
 
 
 class Distance(Cost):
@@ -53,7 +53,7 @@ class Distance(Cost):
         self.p_norm = p_norm
         self.alpha = alpha
 
-    def get_field(self, cs: Detections, ds: Detections) -> Tuple[torch.Tensor, torch.Tensor]:
+    def get_field(self, cs: TensorDictBase, ds: TensorDictBase) -> Tuple[torch.Tensor, torch.Tensor]:
         ts_field = cs.get(self.field)
         ds_field = ds.get(self.field)
 
@@ -66,7 +66,7 @@ class Distance(Cost):
 
         return ts_field, ds_field
 
-    def compute(self, cs: Detections, ds: Detections):
+    def compute(self, cs: TensorDictBase, ds: TensorDictBase):
         ts_field, ds_field = self.get_field(cs, ds)
         return torch.cdist(ts_field, ds_field, self.p_norm) * self.alpha
 
@@ -77,16 +77,16 @@ class Cosine(Distance):
     range $[0,1]$ by computing $1 - S(x,y)$.
     """
 
-    def __init__(self, *args, eps: float = _EPS, **kwargs):
+    def __init__(self, *args, eps: float = DEFAULT_EPS, **kwargs):
         super().__init__(*args, **kwargs)
         self.eps = eps
 
-    def compute(self, cs: Detections, ds: Detections):
+    def compute(self, cs: TensorDictBase, ds: TensorDictBase):
         ts_field, ds_field = self.get_field(cs, ds)
         return (1.0 - _cosine_similarity(ts_field, ds_field, eps=self.eps)) ** self.alpha
 
 
-def _cosine_similarity(a: Tensor, b: Tensor, eps=_EPS) -> Tensor:
+def _cosine_similarity(a: Tensor, b: Tensor, eps=DEFAULT_EPS) -> Tensor:
     """
     Manual computation of the cosine similarity.
 
@@ -106,6 +106,6 @@ def _cosine_similarity(a: Tensor, b: Tensor, eps=_EPS) -> Tensor:
     return torch.mm(a_norm, b_norm.T)
 
 
-def _stable_norm(t: torch.Tensor, eps=_EPS):
+def _stable_norm(t: torch.Tensor, eps=DEFAULT_EPS):
     norm = torch.linalg.vector_norm(t, dim=1, keepdim=True)
     return t / norm.clamp(min=eps)

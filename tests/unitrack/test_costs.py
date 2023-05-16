@@ -1,8 +1,9 @@
 import torch
 from hypothesis import given, settings
 from hypothesis import strategies as st
+from tensordict import TensorDict
 
-from unitrack import Detections, costs
+from unitrack import costs
 
 
 def test_reduced():
@@ -13,7 +14,9 @@ def test_reduced():
         ],
         method=costs.Reduction.SUM,
     )
-    res = red(Detections({"categories": torch.arange(3)}), Detections({"categories": torch.arange(3)}))
+    res = red(
+        TensorDict.from_dict({"categories": torch.arange(3)}), TensorDict.from_dict({"categories": torch.arange(3)})
+    )
     assert res.shape == (3, 3), res.shape
     assert res.diag().sum() == 6.0, res.diag().sum()
 
@@ -21,10 +24,10 @@ def test_reduced():
 @settings(deadline=None)
 @given(cs_num=st.integers(0, 10), ds_num=st.integers(0, 10))
 def test_category_gate(cs_num, ds_num):
-    cs = Detections({"categories": torch.arange(cs_num)})
+    cs = TensorDict.from_dict({"categories": torch.arange(cs_num)})
     assert len(cs) == cs_num, cs
 
-    ds = Detections({"categories": torch.arange(ds_num)})
+    ds = TensorDict.from_dict({"categories": torch.arange(ds_num)})
     assert len(ds) == ds_num, ds
 
     gate = costs.CategoryGate()
@@ -49,10 +52,10 @@ def test_category_gate(cs_num, ds_num):
 @given(cs_num=st.integers(0, 10), ds_num=st.integers(0, 10))
 def test_cdist_cost(cs_num: int, ds_num: int):
     x_cs = cs_num * 2.0
-    cs = Detections({"x": torch.arange(cs_num).unsqueeze(1).float() * x_cs})
+    cs = TensorDict.from_dict({"x": torch.arange(cs_num).unsqueeze(1).float() * x_cs})
     assert len(cs) == cs_num, cs
     x_ds = ds_num * 3.0
-    ds = Detections({"x": torch.arange(ds_num).unsqueeze(1).float() * x_ds})
+    ds = TensorDict.from_dict({"x": torch.arange(ds_num).unsqueeze(1).float() * x_ds})
     assert len(ds) == ds_num, ds
 
     cost = costs.Distance(field="x")
@@ -88,7 +91,7 @@ def test_mask_iou():
         ],
         dtype=torch.int,
     )
-    cs = Detections({"x": cs_x})
+    cs = TensorDict.from_dict({"x": cs_x})
 
     ds_x = torch.tensor(
         [
@@ -105,7 +108,7 @@ def test_mask_iou():
         ],
         dtype=torch.int,
     )
-    ds = Detections({"x": ds_x})
+    ds = TensorDict.from_dict({"x": ds_x})
 
     cost = costs.MaskIoU(field="x")
     cost_matrix = cost(cs, ds)

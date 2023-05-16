@@ -2,8 +2,7 @@ from abc import abstractmethod
 from typing import Iterable, Optional, Sequence
 
 import torch
-
-from ..structures import Detections
+from tensordict import TensorDictBase
 
 __all__ = ["Cost"]
 
@@ -21,20 +20,14 @@ class Cost(torch.nn.Module):
 
         self.required_fields = list(set(required_fields))
 
-    def forward(self, cs: Detections, ds: Detections) -> torch.Tensor:
-        for field_name in self.required_fields:
-            if field_name not in cs:
-                raise ValueError(f"Missing field '{field_name}' in trackets: {cs}!")
-            if field_name not in ds:
-                raise ValueError(f"Missing field '{field_name}' in detections: {cs}!")
-
+    def forward(self, cs: TensorDictBase, ds: TensorDictBase) -> torch.Tensor:
         return self.compute(cs, ds)
 
     @abstractmethod
-    def compute(self, cs: Detections, ds: Detections) -> torch.Tensor:
+    def compute(self, cs: TensorDictBase, ds: TensorDictBase) -> torch.Tensor:
         """
         Computes the assignment costs between :class:`.Tracklets` and
-        :class:`.Detections`.
+        :class:`.TensorDictBase`.
 
         This is an abstract method that should be overwritten be subclassses.
 
@@ -43,7 +36,7 @@ class Cost(torch.nn.Module):
         ts
             Tracklets instance.
         ds
-            Detections instance.
+            TensorDictBase instance.
 
         Returns
         -------

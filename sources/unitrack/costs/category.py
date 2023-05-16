@@ -1,6 +1,6 @@
 import torch
+from tensordict import TensorDictBase
 
-from ..structures import Detections
 from .base_cost import Cost
 
 __all__ = ["CategoryGate"]
@@ -20,7 +20,7 @@ class CategoryGate(Cost):
 
         self.field = field
 
-    def compute(self, cs: Detections, ds: Detections) -> torch.Tensor:
+    def compute(self, cs: TensorDictBase, ds: TensorDictBase) -> torch.Tensor:
         cs_cats = cs.get(self.field)
         ds_cats = ds.get(self.field)
 

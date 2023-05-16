@@ -23,8 +23,9 @@ Lost
 
 """
 
-__version__ = "4.4.0"
+__version__ = "4.5.0"
 
-from . import costs, fields, stages, states, structures  # noqa: F401
+from . import costs, fields, stages, states  # noqa: F401
+from .context import *  # noqa: F401, F403
+from .memory import *  # noqa: F401, F403
 from .tracker import *  # noqa: F401, F403
-from .tracklets import *  # noqa: F401, F403

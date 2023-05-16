@@ -3,6 +3,10 @@ from typing import Dict, List
 
 import torch
 
+from ..context import Context
+
+from tensordict import TensorDict
+
 __all__ = ["Field"]
 
 
@@ -27,56 +31,16 @@ class Field(torch.nn.Module):
         self.required_keys = required_keys
         self.required_data = required_data
 
-    def forward(self, kvmap: Dict[str, torch.Tensor], data: Dict[str, torch.Tensor]):
-        # self.validate_kvmap(kvmap)
-        # self.validate_data(data)
-        return self.extract(kvmap, data)
+    def forward(self, ctx: Context):
+        return self.extract(ctx)
 
     @torch.jit.unused
     def __repr__(self) -> str:
         req = ", ".join(self.required_keys)
         return f"{type(self).__name__}({self.id}, " f"data=[{req}])"
 
-    def validate_kvmap(self, kvmap: Dict[str, torch.Tensor]) -> None:
-        """
-        Validate whether all required keys in `data` are present.
-
-        Parameters
-        ----------
-        data
-            Data to validate.
-
-        Raises
-        ------
-        ValueError
-            Missing key in `data`.
-        """
-        for key in self.required_keys:
-            if key in kvmap:
-                continue
-            raise ValueError(f"Field value with key '{key}' not found!")
-
-    def validate_data(self, data: Dict[str, torch.Tensor]) -> None:
-        """
-        Validate whether all required keys in `data` are present.
-
-        Parameters
-        ----------
-        data
-            Data to validate.
-
-        Raises
-        ------
-        ValueError
-            Missing key in `data`.
-        """
-        for key in self.required_data:
-            if key in data:
-                continue
-            raise ValueError(f"Data with key '{key}' not found!")
-
     @abstractmethod
-    def extract(self, kvmap: Dict[str, torch.Tensor], data: Dict[str, torch.Tensor]) -> torch.Tensor:
+    def extract(self, ctx: Context) -> torch.Tensor | TensorDict:
         """
         Extract field values from data.
 
@@ -88,29 +52,5 @@ class Field(torch.nn.Module):
         Returns
         -------
             Mapping of field names to values.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def update(self, state: torch.Tensor, value: torch.Tensor) -> torch.Tensor:
-        """
-        Update the field state with new values.
-
-        Parameters
-        ----------
-        state
-            Current state of the field.
-        values
-            New set of values.
-
-
-        Returns
-        -------
-            _description_
-
-        Raises
-        ------
-        NotImplementedError
-            _description_
         """
         raise NotImplementedError

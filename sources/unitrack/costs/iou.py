@@ -10,10 +10,10 @@ version of that package.
 from typing import Final, Tuple
 
 import torch
+from tensordict import TensorDictBase
 from torch import Tensor
 from torchvision.ops import box_iou
 
-from ..structures import Detections
 from .base_cost import Cost
 
 __all__ = ["MaskIoU", "BoxIoU"]
@@ -35,7 +35,7 @@ class MaskIoU(Cost):
         self.field: Final = field
         self.eps = eps
 
-    def compute(self, cs: Detections, ds: Detections) -> Tensor:
+    def compute(self, cs: TensorDictBase, ds: TensorDictBase) -> Tensor:
         return _naive_mask_iou(cs.get(self.field), ds.get(self.field), self.eps)
 
 
@@ -53,7 +53,7 @@ class BoxIoU(Cost):
         self.field = field
         self.eps = eps
 
-    def compute(self, cs: Detections, ds: Detections) -> Tensor:
+    def compute(self, cs: TensorDictBase, ds: TensorDictBase) -> Tensor:
         cs_field = _pad_degenerate_boxes(cs.get(self.field))
         ds_field = _pad_degenerate_boxes(ds.get(self.field))
 
