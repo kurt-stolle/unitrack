@@ -30,7 +30,7 @@ def test_tracker():
             "pos": fields.Value(key="pos_key"),
             "categories": fields.Value(key="pred_class"),
         },
-        stages=[stages.Association(cost=costs.Distance("pos"), assignment=assignment.Jonker(999999))],
+        stages=[stages.Association(cost=costs.Distance("pos"), assignment=assignment.Jonker(10))],
     )
 
     tracks = TrackletMemory(
