@@ -30,6 +30,10 @@ class Detections:
 
         self._validate()
 
+    @classmethod
+    def from_dict(cls, fields: Dict[str, torch.Tensor]) -> "Detections":
+        return cls(fields=fields)
+
     def __getitem__(self, index):
         select: Dict[str, torch.Tensor] = {}
         for key, values in self._fields.items():
@@ -60,13 +64,6 @@ class Detections:
             raise ValueError(f"Key '{key}' not in {self}")
 
         self._fields[key] = value
-
-    def __getattr__(self, key: str) -> Any:
-        if key == "indices":
-            return self.indices
-        if key == "mutable":
-            return self.mutable
-        return self._fields[key]
 
     def _validate(self) -> None:
         len_self = len(self)
