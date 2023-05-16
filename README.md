@@ -47,7 +47,7 @@ tracker = unitrack.MultiStageTracker(
     stages=[unitrack.stages.Association(cost=costs.Distance("pos"), assignment=unitrack.assignment.Jonker(10))],
 )
 
-memory = TrackletMemory(
+memory = unitrack.TrackletMemory(
     states={
         "pos": unitrack.states.Value(dtype),
         "categories": unitrack.states.Value(dtype=torch.long),
