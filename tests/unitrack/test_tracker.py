@@ -4,13 +4,7 @@ import pytest
 import torch
 
 from unitrack import (
-    Context,
-    MultiStageTracker,
-    TrackletMemory,
-    assignment,
-    costs,
-    fields,
-    stages,
+    Frame, MultiStageTracker, TrackletMemory, assignment, costs, fields, stages,
     states,
 )
 
@@ -41,11 +35,11 @@ def test_tracker():
     )
 
     for frame, kvmap in enumerate(frames):
-        ctx = Context(None, kvmap, frame)
-        obs = tracks.observe()
+        ctx = Frame(kvmap, frame=frame)
+        obs = tracks.read()
 
         obs, new = tracker(ctx, obs)
-        ids = tracks.update(ctx, obs, new)
+        ids = tracks.write(ctx, obs, new)
 
         assert len(ids) == len(kvmap["pos_key"])
         assert torch.all(ids == torch.arange(len(kvmap["pos_key"]), dtype=torch.long) + 1)

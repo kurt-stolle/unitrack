@@ -6,7 +6,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 from tensordict import TensorDict
 
-from unitrack import Context, assignment, costs, stages
+from unitrack import Frame, assignment, costs, stages
 
 
 def test_lost_stage():
@@ -14,8 +14,7 @@ def test_lost_stage():
         for max_lost in range(1, num_frames):
             stage_lost = stages.Lost(max_lost=max_lost)
 
-            ctx = Context(
-                None,
+            ctx = Frame(
                 None,
                 frame=num_frames + 1,
             )
@@ -65,7 +64,7 @@ def test_association_stage(cs_num: int, ds_num: int):
     ass_stage = stages.Association(cost, assignment.Jonker(torch.inf))
     ass_num = min(cs_num, ds_num)
 
-    ctx = Context(None, ds, frame=3)
+    ctx = Frame(ds, frame=3)
     cs, ds = ass_stage(ctx, cs, ds)
 
     assert len(cs) == cs_num - ass_num

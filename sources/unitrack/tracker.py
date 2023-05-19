@@ -5,7 +5,7 @@ import torch.nn as nn
 from tensordict import TensorDict, TensorDictBase
 
 from .constants import KEY_ACTIVE, KEY_FRAME, KEY_ID, KEY_INDEX, KEY_START
-from .context import Context
+from .context import Frame
 from .fields import Field
 from .stages import Stage
 
@@ -45,7 +45,7 @@ class MultiStageTracker(nn.Module):
 
     def forward(
         self,
-        ctx: Context,
+        ctx: Frame,
         obs: TensorDictBase,
     ) -> Tuple[TensorDictBase, TensorDictBase]:
         """
@@ -71,13 +71,14 @@ class MultiStageTracker(nn.Module):
 
         return obs, new
 
-    def _apply_fields(self, ctx: Context) -> TensorDictBase:
+    def _apply_fields(self, ctx: Frame) -> TensorDictBase:
         items = {key: field(ctx) for key, field in self.fields.items()}
         items[KEY_INDEX] = torch.arange(len(ctx.ids), device=ctx.ids.device)
+        
         return TensorDict(items, batch_size=ctx.ids.shape, device=ctx.ids.device)  # type: ignore
 
     def _apply_stages(
-        self, ctx: Context, obs: TensorDictBase, new: TensorDictBase
+        self, ctx: Frame, obs: TensorDictBase, new: TensorDictBase
     ) -> Tuple[TensorDictBase, TensorDictBase]:
         obs_candidates = obs.get_sub_tensordict(obs.get(KEY_ACTIVE))
         for stage in self.stages:

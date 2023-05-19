@@ -2,7 +2,7 @@ from typing import Dict, Optional
 
 import torch
 
-from ..context import Context
+from ..context import Frame
 from .base_field import Field
 
 __all__ = ["Value"]
@@ -19,5 +19,5 @@ class Value(Field):
         self.key = key
 
     @torch.jit.export
-    def extract(self, ctx: Context) -> torch.Tensor:
+    def extract(self, ctx: Frame) -> torch.Tensor:
         return ctx.detections.get(self.key)

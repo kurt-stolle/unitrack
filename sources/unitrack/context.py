@@ -1,62 +1,38 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
-
 import torch
 from tensordict import TensorDict, TensorDictBase
 
-from .constants import KEY_FRAME, KEY_ID, KEY_INDEX
+__all__ = ["Frame"]
 
-__all__ = ["Context"]
+from typing import Dict, TypeAlias
+
+MaybeTensorDict: TypeAlias = TensorDictBase | Dict[str, torch.Tensor]
 
 
-class Context:
+class Frame:
     def __init__(
         self,
-        context: Optional[TensorDictBase | Dict[str, Any]],
-        detections: Optional[TensorDictBase | Dict[str, Any]],
-        frame: int,
+        detections: MaybeTensorDict,
+        *,
+        context: MaybeTensorDict | None = None,
+        frame: int = 0,
         delta: int = 1,
+        key: str | None = None,
     ) -> None:
-        if context is None:
-            context = TensorDict.from_dict({}, batch_size=(0,))
-        elif isinstance(context, dict):
-            context = TensorDict.from_dict(context)
-            if len(context.batch_size) == 0:
-                context.batch_size = (0,)
+        self.detections = self._make_tensordict(detections)
+        assert self.detections.device is not None, "Device of detections is None!"
 
-        if detections is None:
-            detections = TensorDict.from_dict({}, batch_size=(0,))
-        elif isinstance(detections, dict):
-            detections = TensorDict.from_dict(detections)
-            if len(detections.batch_size) == 0:
-                detections.batch_size = (0,)
-
-        self.context = context
-        self.detections = detections
-        self.ids = torch.zeros(detections.batch_size[0], dtype=torch.long, device=detections.device)
+        self.context = self._make_tensordict(context)
+        self.ids = torch.zeros(self.detections.batch_size[0], dtype=torch.long, device=self.detections.device)
+        self.key = key
         self.frame = frame
         self.delta = delta
 
-    def match(self, cs: TensorDictBase, ds: TensorDictBase) -> None:
-        """
-        Match candidates to detections. Propagates data and IDs from detections to candidates.
-
-        Parameters
-        ----------
-        cs
-            Candidates
-        ds
-            Detections
-        """
-        assert all(cs.get(KEY_FRAME) < self.frame), (cs.get(KEY_FRAME).detach().cpu().tolist(), self.frame)
-
-        for key, value in ds.items():
-            if key.startswith("_"):
-                continue
-            if key not in cs.keys():
-                continue
-            cs.set_(key, value)
-        cs.fill_(KEY_FRAME, self.frame)
-
-        self.ids[ds.get(KEY_INDEX)] = cs.get(KEY_ID)
+    @staticmethod
+    def _make_tensordict(d: MaybeTensorDict | None) -> TensorDictBase:
+        if d is None:
+            return TensorDict.from_dict({}, batch_size=(0,))
+        if isinstance(d, TensorDictBase):
+            return d
+        return TensorDict.from_dict(d)

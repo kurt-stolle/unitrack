@@ -3,7 +3,7 @@ from typing import cast
 import pytest
 import torch
 
-from unitrack import Context, fields
+from unitrack import Frame, fields
 
 
 @pytest.mark.parametrize("dtype", (torch.float32, torch.long, torch.float16, torch.int32, torch.bool))
@@ -15,7 +15,7 @@ def test_value_field(dtype):
     data_value = torch.arange(9).to(dtype)
     data = {data_key: data_value}
 
-    ctx = Context(None, data, 0)
+    ctx = Frame(data, frame=0)
 
     value_result = value_field(ctx)
 

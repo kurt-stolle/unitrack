@@ -2,10 +2,9 @@ from abc import abstractmethod
 from typing import Dict, List
 
 import torch
-
-from ..context import Context
-
 from tensordict import TensorDict
+
+from ..context import Frame
 
 __all__ = ["Field"]
 
@@ -31,7 +30,7 @@ class Field(torch.nn.Module):
         self.required_keys = required_keys
         self.required_data = required_data
 
-    def forward(self, ctx: Context):
+    def forward(self, ctx: Frame):
         return self.extract(ctx)
 
     @torch.jit.unused
@@ -40,7 +39,7 @@ class Field(torch.nn.Module):
         return f"{type(self).__name__}({self.id}, " f"data=[{req}])"
 
     @abstractmethod
-    def extract(self, ctx: Context) -> torch.Tensor | TensorDict:
+    def extract(self, ctx: Frame) -> torch.Tensor | TensorDict:
         """
         Extract field values from data.
 

@@ -4,7 +4,7 @@ from typing import Iterable, List, Tuple
 import torch
 from tensordict import TensorDictBase
 
-from ..context import Context
+from ..context import Frame
 
 __all__ = ["Stage"]
 
@@ -37,7 +37,7 @@ class Stage(torch.nn.Module):
     @abstractmethod
     def forward(
         self,
-        ctx: Context,
+        ctx: Frame,
         cs: TensorDictBase,
         ds: TensorDictBase,
     ) -> Tuple[TensorDictBase, TensorDictBase]:

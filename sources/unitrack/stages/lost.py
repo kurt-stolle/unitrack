@@ -4,7 +4,7 @@ import torch
 from tensordict import TensorDictBase
 
 from ..constants import KEY_FRAME
-from ..context import Context
+from ..context import Frame
 from .base_stage import Stage
 
 __all__ = ["Lost"]
@@ -39,7 +39,7 @@ class Lost(Stage):
 
         self.max_lost = max_lost
 
-    def forward(self, ctx: Context, cs: TensorDictBase, ds: TensorDictBase) -> Tuple[TensorDictBase, TensorDictBase]:
+    def forward(self, ctx: Frame, cs: TensorDictBase, ds: TensorDictBase) -> Tuple[TensorDictBase, TensorDictBase]:
         if len(cs) == 0:
             return cs, ds
 

@@ -1,46 +1,42 @@
-from typing import Any
+from abc import abstractmethod
 
 import torch
 
 
 class State(torch.nn.Module):
-    @torch.jit.export
-    def update(self, value: Any) -> None:
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.reset()
+
+    def forward(self, update: torch.Tensor, extend: torch.Tensor) -> None:
         """
-        Set the current state from new values.
-
-        Parameters
-        ----------
-        value
-            Value to update current state with.
-
-        Returns
-        -------
-            New state.
+        Set the current state from the given update and extend tensors. The update
+        tensor is used to update the current state (i.e. propagate assigned objects), 
+        while the extend tensor is used to extend the current state (i.e. add new objects).
         """
-        raise NotImplementedError
 
-    @torch.jit.export
-    def extend(self, value: Any) -> None:
+        self.update(update)
+        self.extend(extend)
+
+    @abstractmethod
+    def update(self, update: torch.Tensor) -> None:
         """
-        Add new values to the state.
-
-        Parameters
-        ----------
-        value
-            Values to add
-
-        Returns
-        -------
-            New state
-
+        Update the current state from the given update tensor.
         """
         raise NotImplementedError
 
-    @torch.jit.export
+    @abstractmethod
+    def extend(self, extend: torch.Tensor) -> None:
+        """
+        Extend the current state from the given extend tensor.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def observe(self) -> torch.Tensor:
         """
-        Observe the current (predicted) state.
+        Observe the current (forecasted) state.
 
         Returns
         -------
@@ -48,6 +44,6 @@ class State(torch.nn.Module):
         """
         raise NotImplementedError
 
-    @torch.jit.export
+    @abstractmethod
     def reset(self):
         raise NotImplementedError
