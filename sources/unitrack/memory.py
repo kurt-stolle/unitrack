@@ -29,7 +29,7 @@ class TrackletMemory(torch.nn.Module):
     max_id: torch.jit.Final[int]
     states: Mapping[str, State]
 
-    def __init__(self, states: Mapping[str, State], max_id=1000, inplace=True, auto_reset=True, fps=15):
+    def __init__(self, states: Mapping[str, State], max_id=1000, auto_reset=True, fps=15):
         super().__init__()
 
         assert max_id > 0, max_id
@@ -44,7 +44,6 @@ class TrackletMemory(torch.nn.Module):
         self.states[KEY_ACTIVE] = ValueState(torch.bool)
         self.states.update(states)
 
-        self.inplace = inplace  # update ID in-place
         self.auto_reset = auto_reset  # reset the memory when the current frame is larger than the stored frame
 
         self.register_buffer("frame", torch.tensor(-1, dtype=torch.int, requires_grad=False))
@@ -63,12 +62,15 @@ class TrackletMemory(torch.nn.Module):
 
         frame = ctx.get(KEY_FRAME)
 
-        # Read the amount of added instances from the batch size of the new detections TensorDict.
-        extend_num = new.batch_size[0]
-
         # Update observations' states
         obs_active = obs.get_sub_tensordict(obs.get(KEY_ACTIVE))
-        obs_active.set_(KEY_FRAME, frame)
+        active_num = obs_active.batch_size[0]
+        if active_num > 0:
+            obs_active.set_(KEY_FRAME, frame)
+
+        # Read the amount of added instances from the batch size of the new detections TensorDict.
+        extend_num = new.batch_size[0]
+        total_num = active_num + extend_num
 
         # Assign IDs to the new detections.
         extend_ids = torch.arange(extend_num, dtype=torch.long, device=self.frame.device, requires_grad=False)
@@ -102,13 +104,17 @@ class TrackletMemory(torch.nn.Module):
                 raise ValueError(f"State '{id}' does not match a field in {new.keys()}!")
 
             # Propagate
-            state(state_upd, state_ext)
+            state.update(state_upd)
+            state.extend(state_ext)
 
         # Update the IDs of the new detections (that hadn't been matched)
-        ids = obs.get(KEY_ID)
-        if not self.inplace:
-            ids = ids.clone()
-        ids[new.get(KEY_INDEX)] = extend_ids
+        ids = torch.full((total_num,), -1, dtype=torch.long, device=self.frame.device, requires_grad=False)
+        if active_num > 0:
+            ids[obs_active.get(KEY_INDEX)] = obs_active.get(KEY_ID)
+        if extend_num > 0:
+            ids[new.get(KEY_INDEX)] = extend_ids
+        if (ids < 0).any():
+            raise ValueError(f"IDs are not assigned correctly: {ids}!")
 
         # Update the frame and count
         self.frame.fill_(frame)

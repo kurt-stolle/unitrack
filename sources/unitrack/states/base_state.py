@@ -14,14 +14,14 @@ class State(torch.nn.Module):
         super().__init__(**kwargs)
 
     @abstractmethod
-    def patch(self, update: StateValue) -> None:
+    def update(self, update: StateValue) -> None:
         """
         Update the current state from the given update tensor.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def put(self, extend: StateValue) -> None:
+    def extend(self, extend: StateValue) -> None:
         """
         Extend the current state from the given extend tensor.
         """
@@ -59,7 +59,7 @@ class State(torch.nn.Module):
 
         return items
 
-    def evolve(self, delta: Tensor) -> Iterable[tuple[str, Tensor]]:
+    def evolve(self, delta: Tensor):
         """
         Evolve the state by the given delta. This is a no-op by default.
 

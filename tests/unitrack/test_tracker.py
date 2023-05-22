@@ -3,10 +3,11 @@ from typing import cast
 import pytest
 import torch
 from tensordict import TensorDict
+from tensordict.nn import TensorDictModule
+from torch import nn
 
 from unitrack import (
-    MultiStageTracker, TrackletMemory, assignment, costs, fields, stages,
-    states,
+    MultiStageTracker, TrackletMemory, assignment, costs, stages, states,
 )
 
 
@@ -21,10 +22,10 @@ def test_tracker():
     ]
 
     trk = MultiStageTracker(
-        fields={
-            "pos": fields.Value(key="pos_key"),
-            "categories": fields.Value(key="pred_class"),
-        },
+        fields=[
+            TensorDictModule(nn.Identity(), in_keys=["pos_key"], out_keys=["pos"]),
+            TensorDictModule(nn.Identity(), in_keys=["pred_class"], out_keys=["categories"]),
+        ],
         stages=[stages.Association(cost=costs.Distance("pos"), assignment=assignment.Jonker(10))],
     )
 
@@ -41,6 +42,6 @@ def test_tracker():
         obs, new = trk(ctx, obs, det)
         ids = mem.write(ctx, obs, new)
 
-        assert len(ids) == len(obs["pos_key"])
-        assert torch.all(ids == torch.arange(len(obs["pos_key"]), dtype=torch.long) + 1)
+        assert len(ids) == len(det["pos_key"])
+        assert torch.all(ids == torch.arange(len(det["pos_key"]), dtype=torch.long) + 1)
         assert isinstance(ids, torch.Tensor), type(ids)

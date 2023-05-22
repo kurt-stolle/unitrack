@@ -30,7 +30,7 @@ class Value(State):
 
         self.register_buffer("values", torch.empty(0, dtype=dtype), persistent=False)
 
-    def forward(self, values: Tensor) -> None:
+    def update(self, values: Tensor) -> None:
         self.values = values
 
     def extend(self, values: Tensor) -> None:
