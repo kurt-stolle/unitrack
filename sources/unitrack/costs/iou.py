@@ -10,52 +10,35 @@ version of that package.
 from typing import Final, Tuple
 
 import torch
-from tensordict import TensorDictBase
 from torch import Tensor
 from torchvision.ops import box_iou
 
-from .base_cost import Cost
+from .base_cost import FieldCost
 
 __all__ = ["MaskIoU", "BoxIoU"]
 
 DEFAULT_EPS: Final = 1e-8
 
 
-class MaskIoU(Cost):
+class MaskIoU(FieldCost):
     """
     Computes IoU cost matrix between two sets of bitmasks.
     """
 
     eps: torch.jit.Final[float]
-    field: torch.jit.Final[str]
 
-    def __init__(self, field: str, eps: float = DEFAULT_EPS):
-        super().__init__(required_fields=(field,))
-
-        self.field: Final = field
+    def __init__(self, eps: float = DEFAULT_EPS, **kwargs):
+        super().__init__(**kwargs)
         self.eps = eps
 
-    def compute(self, cs: TensorDictBase, ds: TensorDictBase) -> Tensor:
-        return _naive_mask_iou(cs.get(self.field), ds.get(self.field), self.eps)
+    def compute(self, cs: Tensor, ds: Tensor) -> Tensor:
+        return _naive_mask_iou(cs, ds, self.eps)
 
 
-class BoxIoU(Cost):
-    """
-    Computes the generalized IoU cost matrix between two sets of bounding boxes.
-    """
-
-    field: torch.jit.Final[str]
-    eps: torch.jit.Final[float]
-
-    def __init__(self, field: str, eps: float = DEFAULT_EPS):
-        super().__init__(required_fields=(field,))
-
-        self.field = field
-        self.eps = eps
-
-    def compute(self, cs: TensorDictBase, ds: TensorDictBase) -> Tensor:
-        cs_field = _pad_degenerate_boxes(cs.get(self.field))
-        ds_field = _pad_degenerate_boxes(ds.get(self.field))
+class BoxIoU(MaskIoU):
+    def compute(self, cs: Tensor, ds: Tensor) -> Tensor:
+        cs_field = _pad_degenerate_boxes(cs)
+        ds_field = _pad_degenerate_boxes(ds)
 
         return 1.0 - _complete_box_iou(cs_field, ds_field, self.eps)
 

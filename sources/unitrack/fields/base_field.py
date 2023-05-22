@@ -1,12 +1,17 @@
 from abc import abstractmethod
-from typing import Dict, List
+from typing import Iterable, List
 
 import torch
 from tensordict import TensorDict
-
-from ..context import Frame
+from tensordict.utils import NestedKey
 
 __all__ = ["Field"]
+
+
+def _optional_list(xs: Iterable[NestedKey] | None) -> List[NestedKey]:
+    if xs is None:
+        return []
+    return list(x for x in xs)
 
 
 class Field(torch.nn.Module):
@@ -15,41 +20,37 @@ class Field(torch.nn.Module):
     object.
     """
 
-    def __init__(self, required_keys: List[str], required_data: List[str]):
+    in_det: torch.jit.Final[List[NestedKey]]
+    in_ctx: torch.jit.Final[List[NestedKey]]
+
+    def __init__(
+        self,
+        *,
+        in_det: Iterable[NestedKey] | None = None,
+        in_ctx: Iterable[NestedKey] | None = None,
+        **kwargs,
+    ):
         """
         Parameters
         ----------
-        id
-            Unique ID for this field.
-        required_data
-            List of required keys in the input data.
+        in_detection
+            List of keys to read from the detection (e.g. object embeddings)
+        in_context
+            List of keys to read from the context (e.g. image-scale features)
         """
 
-        super().__init__()
+        super().__init__(**kwargs)
 
-        self.required_keys = required_keys
-        self.required_data = required_data
+        self.in_det = _optional_list(in_det)
+        self.in_ctx = _optional_list(in_ctx)
 
-    def forward(self, ctx: Frame):
-        return self.extract(ctx)
-
-    @torch.jit.unused
     def __repr__(self) -> str:
-        req = ", ".join(self.required_keys)
-        return f"{type(self).__name__}({self.id}, " f"data=[{req}])"
+        kwvars = ", ".join(
+            f"{k}=[{v}]"
+            for k, v in {
+                "in_detections": ", ".join("_".join(d) for d in self.in_det),
+                "in_context": ", ".join("_".join(d) for d in self.in_ctx),
+            }.items()
+        )
 
-    @abstractmethod
-    def extract(self, ctx: Frame) -> torch.Tensor | TensorDict:
-        """
-        Extract field values from data.
-
-        Parameters
-        ----------
-        data
-            Mapping of data keys to tensors.
-
-        Returns
-        -------
-            Mapping of field names to values.
-        """
-        raise NotImplementedError
+        return f"{type(self).__name__}({self.id}, {kwvars})"

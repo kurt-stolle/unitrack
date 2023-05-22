@@ -9,7 +9,7 @@ from .base_cost import Cost
 __all__ = ["Distance", "Cosine"]
 
 
-DEFAULT_EPS: Final = 1e-8
+DEFAULT_EPS: Final = 1e-7
 
 
 class Distance(Cost):
@@ -17,15 +17,15 @@ class Distance(Cost):
     Cost function that wraps a distance module.
     """
 
-    select: List[int]
-    p: float
+    select: torch.jit.Final[List[int]]
+    p: torch.jit.Final[float]
+    field: torch.jit.Final[str]
 
     def __init__(
         self,
         field: str,
         select: Optional[List[int]] = None,
         p_norm: float = 2.0,
-        alpha: float = 1.0,
     ):
         """
         Parameters
@@ -39,8 +39,6 @@ class Distance(Cost):
             List of indices to select from the field.
         p_norm
             Value of p-norm.
-        alpha
-            Result distance ^ alpha
         """
         super().__init__(required_fields=(field,))
 
@@ -50,8 +48,7 @@ class Distance(Cost):
             select = []
 
         self.select = select  # type: ignore
-        self.p_norm = p_norm
-        self.alpha = alpha
+        self.p = p_norm
 
     def get_field(self, cs: TensorDictBase, ds: TensorDictBase) -> Tuple[torch.Tensor, torch.Tensor]:
         ts_field = cs.get(self.field)
@@ -66,9 +63,9 @@ class Distance(Cost):
 
         return ts_field, ds_field
 
-    def compute(self, cs: TensorDictBase, ds: TensorDictBase):
+    def forward(self, cs: TensorDictBase, ds: TensorDictBase):
         ts_field, ds_field = self.get_field(cs, ds)
-        return torch.cdist(ts_field, ds_field, self.p_norm) * self.alpha
+        return torch.cdist(ts_field, ds_field, self.p, "donot_use_mm_for_euclid_dist")
 
 
 class Cosine(Distance):
@@ -83,7 +80,7 @@ class Cosine(Distance):
 
     def compute(self, cs: TensorDictBase, ds: TensorDictBase):
         ts_field, ds_field = self.get_field(cs, ds)
-        return (1.0 - _cosine_similarity(ts_field, ds_field, eps=self.eps)) ** self.alpha
+        return 1.0 - _cosine_similarity(ts_field, ds_field, eps=self.eps)
 
 
 def _cosine_similarity(a: Tensor, b: Tensor, eps=DEFAULT_EPS) -> Tensor:

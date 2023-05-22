@@ -1,9 +1,8 @@
-from typing import cast
-
 import pytest
 import torch
+from tensordict import TensorDict
 
-from unitrack import Frame, fields
+from unitrack import fields
 
 
 @pytest.mark.parametrize("dtype", (torch.float32, torch.long, torch.float16, torch.int32, torch.bool))
@@ -15,9 +14,7 @@ def test_value_field(dtype):
     data_value = torch.arange(9).to(dtype)
     data = {data_key: data_value}
 
-    ctx = Frame(data, frame=0)
-
-    value_result = value_field(ctx)
+    value_result = value_field(ctx=TensorDict.from_dict({}), det=TensorDict.from_dict(data))
 
     assert torch.allclose(value_result, data_value)
     assert value_result.dtype == dtype

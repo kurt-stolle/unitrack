@@ -1,6 +1,19 @@
+from typing import TypeAlias
+
 import torch
+from torch import Tensor
 
 from .base_state import State
+
+DataType: TypeAlias = torch.dtype | str
+
+
+def _cast_dtype(dtype: DataType) -> torch.dtype:
+    if isinstance(dtype, str):
+        dtype = getattr(torch, dtype)
+    if not isinstance(dtype, torch.dtype):
+        raise ValueError(f"No a valid data type: {dtype}!")
+    return dtype
 
 
 class Value(State):
@@ -9,26 +22,22 @@ class Value(State):
     implemented.
     """
 
-    values: torch.Tensor
+    values: Tensor
 
-    def __init__(self, dtype: torch.dtype | str):
+    def __init__(self, dtype: DataType):
         super().__init__()
-
-        if isinstance(dtype, str):
-            dtype = getattr(torch, dtype)
-        if not isinstance(dtype, torch.dtype):
-            raise ValueError(f"No a valid data type: {dtype}!")
+        dtype = _cast_dtype(dtype)
 
         self.register_buffer("values", torch.empty(0, dtype=dtype), persistent=False)
 
-    def forward(self, values: torch.Tensor) -> None:
+    def forward(self, values: Tensor) -> None:
         self.values = values
 
-    def extend(self, values: torch.Tensor) -> None:
+    def extend(self, values: Tensor) -> None:
         values_cat = torch.cat([self.values, values], dim=0)
         self.values = values_cat
 
-    def observe(self) -> torch.Tensor:
+    def observe(self) -> Tensor:
         return self.values
 
     def reset(self) -> None:
@@ -41,7 +50,7 @@ class MeanValues(State):
     size.
     """
 
-    values_history: torch.Tensor
+    values_history: Tensor
 
     def __init__(self, window: int, dtype: torch.dtype | str):
         super().__init__()
@@ -54,16 +63,16 @@ class MeanValues(State):
         self.window = window
         self.register_buffer("values_history", torch.zeros((0,), dtype=dtype), persistent=False)
 
-    def forward(self, values: torch.Tensor) -> None:
+    def forward(self, values: Tensor) -> None:
         raise NotImplementedError
 
-    def extend(self, values: torch.Tensor) -> None:
+    def extend(self, values: Tensor) -> None:
         values = values.unsqueeze(0)
         values = values.expand((self.values_history.shape[0], *values.shape))
 
         self.values_history = torch.cat([self.values_history, values], dim=1)
 
-    def observe(self) -> torch.Tensor:
+    def observe(self) -> Tensor:
         return torch.mean(self.values_history, dim=0)
 
     def reset(self) -> None:

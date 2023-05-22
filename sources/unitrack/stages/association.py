@@ -3,7 +3,7 @@ from typing import Tuple
 from tensordict import TensorDictBase
 
 from ..assignment import Assignment
-from ..context import Frame
+from ..constants import KEY_FRAME, KEY_ID, KEY_INDEX
 from ..costs import Cost
 from .base_stage import Stage
 
@@ -21,7 +21,7 @@ class Association(Stage):
         cost: Cost,
         assignment: Assignment,
     ) -> None:
-        super().__init__([], [])
+        super().__init__()
 
         self.cost = cost
         self.assignment = assignment
@@ -32,7 +32,9 @@ class Association(Stage):
         for cost in costs:
             self.required_fields += cost.required_fields
 
-    def forward(self, ctx: Frame, cs: TensorDictBase, ds: TensorDictBase) -> Tuple[TensorDictBase, TensorDictBase]:
+    def forward(
+        self, ctx: TensorDictBase, cs: TensorDictBase, ds: TensorDictBase
+    ) -> Tuple[TensorDictBase, TensorDictBase]:
         if len(cs) == 0 or len(ds) == 0:
             return cs, ds
 
@@ -62,14 +64,11 @@ class Association(Stage):
         ds
             Detections
         """
-        assert all(cs.get(KEY_FRAME) < self.frame), (cs.get(KEY_FRAME).detach().cpu().tolist(), self.frame)
-
         for key, value in ds.items():
             if key.startswith("_"):
                 continue
             if key not in cs.keys():
                 continue
             cs.set_(key, value)
-        cs.fill_(KEY_FRAME, self.frame)
 
-        self.ids[ds.get(KEY_INDEX)] = cs.get(KEY_ID)
+        cs.set_(KEY_INDEX, ds.get(KEY_INDEX))

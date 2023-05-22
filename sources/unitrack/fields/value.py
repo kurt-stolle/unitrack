@@ -1,8 +1,6 @@
-from typing import Dict, Optional
+from tensordict import TensorDictBase
+from torch import Tensor
 
-import torch
-
-from ..context import Frame
 from .base_field import Field
 
 __all__ = ["Value"]
@@ -13,11 +11,8 @@ class Value(Field):
     A :class:`.Field` that copies its value directly from the input data.
     """
 
-    def __init__(self, key: str):
-        super().__init__(required_keys=[key], required_data=[])
+    def __init__(self, key: str, **kwargs):
+        super().__init__(in_det=[key], in_ctx=[], **kwargs)
 
-        self.key = key
-
-    @torch.jit.export
-    def extract(self, ctx: Frame) -> torch.Tensor:
-        return ctx.detections.get(self.key)
+    def forward(self, value: Tensor) -> Tensor:
+        return value

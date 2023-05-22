@@ -1,10 +1,12 @@
-from typing import Mapping
+from typing import Mapping, Optional, cast
 
 import torch
 from tensordict import TensorDict, TensorDictBase
+from tensordict.nn import TensorDictSequential
 
-from .constants import KEY_ACTIVE, KEY_FRAME, KEY_ID, KEY_INDEX, KEY_START
-from .context import Frame
+from .constants import (
+    KEY_ACTIVE, KEY_DELTA, KEY_FRAME, KEY_ID, KEY_INDEX, KEY_START,
+)
 from .states import State
 from .states import Value as ValueState
 
@@ -27,12 +29,13 @@ class TrackletMemory(torch.nn.Module):
     max_id: torch.jit.Final[int]
     states: Mapping[str, State]
 
-    def __init__(self, states: Mapping[str, State], max_id=1000, inplace=True, auto_reset=True):
+    def __init__(self, states: Mapping[str, State], max_id=1000, inplace=True, auto_reset=True, fps=15):
         super().__init__()
 
         assert max_id > 0, max_id
         assert len(states) > 0, len(states)
 
+        self.fps = fps
         self.max_id = max_id
         self.states = torch.nn.ModuleDict()  # type: ignore
         self.states[KEY_FRAME] = ValueState(torch.int)
@@ -41,8 +44,8 @@ class TrackletMemory(torch.nn.Module):
         self.states[KEY_ACTIVE] = ValueState(torch.bool)
         self.states.update(states)
 
-        self.inplace = inplace  # update ID in-place 
-        self.auto_reset = auto_reset # reset the memory when the current frame is larger than the stored frame
+        self.inplace = inplace  # update ID in-place
+        self.auto_reset = auto_reset  # reset the memory when the current frame is larger than the stored frame
 
         self.register_buffer("frame", torch.tensor(-1, dtype=torch.int, requires_grad=False))
         self.register_buffer("count", torch.tensor(0, dtype=torch.int, requires_grad=False))
@@ -51,15 +54,21 @@ class TrackletMemory(torch.nn.Module):
         return int(self.count.detach().cpu().item())
 
     @torch.jit.export
-    def write(self, ctx: Frame, obs: TensorDictBase, new: TensorDictBase) -> torch.Tensor:
+    def write(self, ctx: TensorDictBase, obs: TensorDictBase, new: TensorDictBase) -> torch.Tensor:
         """
         Apply the updated observations and new detections to the tracklets states.
 
         Returns the complete set of IDs of the context (which is also updated in-place).
         """
 
+        frame = ctx.get(KEY_FRAME)
+
         # Read the amount of added instances from the batch size of the new detections TensorDict.
         extend_num = new.batch_size[0]
+
+        # Update observations' states
+        obs_active = obs.get_sub_tensordict(obs.get(KEY_ACTIVE))
+        obs_active.set_(KEY_FRAME, frame)
 
         # Assign IDs to the new detections.
         extend_ids = torch.arange(extend_num, dtype=torch.long, device=self.frame.device, requires_grad=False)
@@ -81,7 +90,7 @@ class TrackletMemory(torch.nn.Module):
             elif id == KEY_FRAME or id == KEY_START:
                 state_ext = torch.full(
                     (extend_num,),
-                    ctx.frame,
+                    frame,
                     dtype=torch.int,
                     device=self.frame.device,
                 )
@@ -96,37 +105,57 @@ class TrackletMemory(torch.nn.Module):
             state(state_upd, state_ext)
 
         # Update the IDs of the new detections (that hadn't been matched)
-        ids = ctx.ids
+        ids = obs.get(KEY_ID)
         if not self.inplace:
             ids = ids.clone()
         ids[new.get(KEY_INDEX)] = extend_ids
 
         # Update the frame and count
-        self.frame.fill_(ctx.frame)
+        self.frame.fill_(frame)
         self.count += 1
 
         return ids
 
     @torch.jit.export
-    def read(self, ctx: Frame) -> TensorDictBase:
+    def read(self, frame: int) -> tuple[TensorDictBase, TensorDictBase]:
         """
-        Observe the current state of tracklets.
+        Observe the current state of tracklets. Evolves the states of the tracklets
+        to the current frame.
+
+        Parameters
+        ----------
+        frame
+            The current frame number, used to automatically reset the memory before
+            reading when ``auto_reset`` is enabled.
 
         Returns
         -------
             A ``TensorDict`` object will all observed states.
         """
 
-        if ctx.frame >= self.frame:
-            if not self.auto_reset:
-                raise ValueError(f"Frame {ctx.frame} is larger than the stored frame {self.frame}!")
+        if frame >= self.frame and self.auto_reset:
             self.reset()
+        else:
+            raise ValueError(f"Cannot read frame {frame} from memory at frame {self.frame}!")
 
-        obs = {}
-        for id, state in self.states.items():
-            obs[id] = state.observe()  # type: ignore
+        # Calculate the time-delta from the amoutn of frames passed and the FPS.
+        delta = (frame - self.frame) / self.fps
 
-        return TensorDict.from_dict(obs, device=self.frame.device)
+        ctx = TensorDict.from_dict(
+            {
+                KEY_DELTA: delta,
+                KEY_FRAME: frame,
+            },
+            batch_size=[],
+            device=self.frame.device,
+        )
+
+        obs = TensorDict.from_dict({id: state.evolve(delta) for id, state in self.states.items()})
+        obs[KEY_INDEX] = torch.full(
+            obs.batch_size[:1], -1, dtype=torch.long, device=self.frame.device, requires_grad=False
+        )
+
+        return ctx, obs
 
     @torch.jit.export
     def reset(self) -> None:
@@ -138,4 +167,3 @@ class TrackletMemory(torch.nn.Module):
 
         for state in self.states.values():
             state.reset()  # type: ignore
-

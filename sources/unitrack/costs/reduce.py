@@ -24,7 +24,7 @@ class Weighted(Cost):
         self.cost = cost
         self.weight = weight
 
-    def compute(self, cs: TensorDictBase, ds: TensorDictBase) -> torch.Tensor:
+    def forward(self, cs: TensorDictBase, ds: TensorDictBase) -> torch.Tensor:
         return self.weight * self.cost(cs, ds)
 
 
@@ -66,7 +66,7 @@ class Reduce(Cost):
 
         self.register_buffer("weights", torch.tensor(weights, dtype=torch.float32).unsqueeze_(-1).unsqueeze_(-1))
 
-    def compute(self, cs: TensorDictBase, ds: TensorDictBase) -> torch.Tensor:
+    def forward(self, cs: TensorDictBase, ds: TensorDictBase) -> torch.Tensor:
         costs = torch.stack([cost(cs, ds) for cost in self.costs])
         costs = costs * self.weights
         costs = _reduce_stack(costs, self.method)

@@ -3,8 +3,7 @@ from typing import Tuple
 import torch
 from tensordict import TensorDictBase
 
-from ..constants import KEY_FRAME
-from ..context import Frame
+from ..constants import KEY_DELTA, KEY_FRAME
 from .base_stage import Stage
 
 __all__ = ["Lost"]
@@ -33,16 +32,18 @@ class Lost(Stage):
             Maximum amount of time a candidate may remain lost.
         """
 
-        super().__init__([], [])
+        super().__init__()
 
         assert max_lost > 0, max_lost
 
         self.max_lost = max_lost
 
-    def forward(self, ctx: Frame, cs: TensorDictBase, ds: TensorDictBase) -> Tuple[TensorDictBase, TensorDictBase]:
+    def forward(
+        self, ctx: TensorDictBase, cs: TensorDictBase, ds: TensorDictBase
+    ) -> Tuple[TensorDictBase, TensorDictBase]:
         if len(cs) == 0:
             return cs, ds
 
-        time_lost = ctx.frame - cs.get(KEY_FRAME) - ctx.delta
+        time_lost = ctx.get(KEY_FRAME) - cs.get(KEY_FRAME) - ctx.get(KEY_DELTA)
 
         return cs.get_sub_tensordict(time_lost > self.max_lost), ds
