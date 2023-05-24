@@ -5,7 +5,12 @@ from tensordict import TensorDict, TensorDictBase
 from tensordict.nn import TensorDictSequential
 
 from .constants import (
-    KEY_ACTIVE, KEY_DELTA, KEY_FRAME, KEY_ID, KEY_INDEX, KEY_START,
+    KEY_ACTIVE,
+    KEY_DELTA,
+    KEY_FRAME,
+    KEY_ID,
+    KEY_INDEX,
+    KEY_START,
 )
 from .states import State
 from .states import Value as ValueState

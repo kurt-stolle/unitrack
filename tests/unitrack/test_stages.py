@@ -10,7 +10,6 @@ from unitrack import assignment, costs, stages
 
 
 def test_lost_stage():
-
     for num_frames in range(1, 10):
         for max_lost in range(1, num_frames):
             stage_lost = stages.Lost(max_lost=max_lost)
@@ -62,9 +61,7 @@ def test_association_stage(cs_num: int, ds_num: int):
     ass_stage = stages.Association(cost, assignment.Jonker(torch.inf))
     ass_num = min(cs_num, ds_num)
 
-    ctx = TensorDict.from_dict({
-        
-    })
+    ctx = TensorDict.from_dict({})
     cs, ds = ass_stage(ctx, cs, ds)
 
     assert len(cs) == cs_num - ass_num

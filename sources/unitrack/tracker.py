@@ -4,7 +4,9 @@ import torch
 import torch.nn as nn
 from tensordict import TensorDict, TensorDictBase
 from tensordict.nn import (
-    TensorDictModule, TensorDictModuleBase, TensorDictSequential,
+    TensorDictModule,
+    TensorDictModuleBase,
+    TensorDictSequential,
 )
 
 from .constants import KEY_ACTIVE, KEY_FRAME, KEY_ID, KEY_INDEX, KEY_START
@@ -45,14 +47,20 @@ class MultiStageTracker(nn.Module):
 
         # Fields target (newly detected objects)
         new = TensorDict(
-            {
-                KEY_INDEX: torch.arange(num_det, device=inp.device),
-            },
-            batch_size=[num_det],
+            {},
+            batch_size=[],
             device=inp.device,
         )
         self.fields(inp, tensordict_out=new)
 
+        # Infer the number of detections from the batch size of some element in the new detections
+        num_det = int(next(new.values()).shape[0])
+        new.batch_size = torch.Size((num_det,))
+
+        # Add the index of the detections to association
+        new[KEY_INDEX] = torch.arange(num_det, device=inp.device)
+
+        # Candidates for matching are all active observed tracklets
         obs_candidates = obs.get_sub_tensordict(obs.get(KEY_ACTIVE))
         for stage in self.stages:
             obs_candidates, new = stage(ctx, obs_candidates, new)

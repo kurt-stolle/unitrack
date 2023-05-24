@@ -23,7 +23,7 @@ Lost
 
 """
 
-__version__ = "4.6.9"
+__version__ = "4.6.10"
 
 from . import assignment, costs, stages, states  # noqa: F401
 from .constants import *  # noqa: F401, F403

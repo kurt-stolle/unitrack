@@ -7,7 +7,12 @@ from tensordict.nn import TensorDictModule
 from torch import nn
 
 from unitrack import (
-    MultiStageTracker, TrackletMemory, assignment, costs, stages, states,
+    MultiStageTracker,
+    TrackletMemory,
+    assignment,
+    costs,
+    stages,
+    states,
 )
 
 
