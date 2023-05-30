@@ -4,9 +4,7 @@ import torch
 import torch.nn as nn
 from tensordict import TensorDict, TensorDictBase
 from tensordict.nn import (
-    TensorDictModule,
-    TensorDictModuleBase,
-    TensorDictSequential,
+    TensorDictModule, TensorDictModuleBase, TensorDictSequential,
 )
 
 from .constants import KEY_ACTIVE, KEY_FRAME, KEY_ID, KEY_INDEX, KEY_START
@@ -23,7 +21,7 @@ class MultiStageTracker(nn.Module):
 
         assert len(stages) > 0
 
-        self.fields = TensorDictSequential(*fields)
+        self.fields = nn.ModuleList(fields)
         self.stages = cast(List[Stage], nn.ModuleList(stages))
 
     def forward(
@@ -42,30 +40,35 @@ class MultiStageTracker(nn.Module):
             Updated observations and field-values of new tracklets.
         """
 
-        # Read the amount of detections
-        num_det = inp.batch_size[0]
-
         # Fields target (newly detected objects)
         new = TensorDict(
             {},
             batch_size=[],
             device=inp.device,
         )
-        self.fields(inp, tensordict_out=new)
+
+        for field in self.fields:
+            field(inp, tensordict_out=new)
 
         # Infer the number of detections from the batch size of some element in the new detections
         num_det = int(next(new.values()).shape[0])
         new.batch_size = torch.Size((num_det,))
+        if num_det == 0:
+            return obs, new
 
         # Add the index of the detections to association
         new[KEY_INDEX] = torch.arange(num_det, device=inp.device)
 
         # Candidates for matching are all active observed tracklets
-        obs_candidates = obs.get_sub_tensordict(obs.get(KEY_ACTIVE))
-        for stage in self.stages:
-            obs_candidates, new = stage(ctx, obs_candidates, new)
+        obs_active = obs.get(KEY_ACTIVE)
+        if obs_active.any():
+            obs_candidates = obs.get_sub_tensordict(obs_active)
+            for stage in self.stages:
+                obs_candidates, new = stage(ctx, obs_candidates, new)
+                if len(obs_candidates) == 0 or len(new) == 0:
+                    break
 
-        if len(obs_candidates) > 0 and obs_candidates.batch_size[0] > 0:
-            obs_candidates.fill_(KEY_ACTIVE, False)
+            if len(obs_candidates) > 0 and obs_candidates.batch_size[0] > 0:
+                obs_candidates.fill_(KEY_ACTIVE, False)
 
         return obs, new

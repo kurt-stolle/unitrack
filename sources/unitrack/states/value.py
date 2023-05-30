@@ -28,10 +28,10 @@ class Value(State):
         super().__init__()
         dtype = _cast_dtype(dtype)
 
-        self.register_buffer("values", torch.empty(0, dtype=dtype), persistent=False)
+        self.register_buffer("values", torch.empty(0, dtype=dtype, requires_grad=False), persistent=False)
 
     def update(self, values: Tensor) -> None:
-        self.values = values
+        self.values = values.detach()
 
     def extend(self, values: Tensor) -> None:
         values_cat = torch.cat([self.values, values], dim=0)
