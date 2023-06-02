@@ -60,7 +60,7 @@ tests = [
     "pytest-runner",
     "pytest==7.2.2",
     "pytest-github-actions-annotate-failures",
-    "shellcheck-py==0.9.0.2",
+    "shellcheck-py==0.9.0.5",
 ]
 
 [tool.bandit]
