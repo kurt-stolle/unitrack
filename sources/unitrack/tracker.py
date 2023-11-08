@@ -53,7 +53,7 @@ class MultiStageTracker(nn.Module):
             field(inp, tensordict_out=new)
 
         # Infer the number of detections from the batch size of some element in the new detections
-        num_det = int(next(new.values()).shape[0])
+        num_det = int(next(iter(new.values())).shape[0])
         new.batch_size = torch.Size((num_det,))
         if num_det == 0:
             return obs, new
