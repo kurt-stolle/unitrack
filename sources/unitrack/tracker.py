@@ -4,7 +4,9 @@ import torch
 import torch.nn as nn
 from tensordict import TensorDict, TensorDictBase
 from tensordict.nn import (
-    TensorDictModule, TensorDictModuleBase, TensorDictSequential,
+    TensorDictModule,
+    TensorDictModuleBase,
+    TensorDictSequential,
 )
 
 from .constants import KEY_ACTIVE, KEY_FRAME, KEY_ID, KEY_INDEX, KEY_START

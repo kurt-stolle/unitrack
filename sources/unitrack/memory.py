@@ -144,10 +144,11 @@ class TrackletMemory(torch.nn.Module):
             A ``TensorDict`` object will all observed states.
         """
 
-        if frame >= self.frame and self.auto_reset:
-            self.reset()
-        else:
-            raise ValueError(f"Cannot read frame {frame} from memory at frame {self.frame}!")
+        if frame >= self.frame:
+            if self.auto_reset:
+                self.reset()
+            else:
+                raise ValueError(f"Cannot read frame {frame} from memory at frame {self.frame}!")
 
         # Calculate the time-delta from the amoutn of frames passed and the FPS.
         delta = (frame - self.frame) / self.fps
