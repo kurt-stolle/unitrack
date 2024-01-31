@@ -15,7 +15,7 @@ from pathlib import Path
 import sphinx_rtd_theme
 import typing_extensions as TX
 
-sources_path = importlib.resources.files("unipercept")
+sources_path = importlib.resources.files("unitrack")
 assert sources_path.is_dir()
 
 sys.path.insert(0, str(sources_path))

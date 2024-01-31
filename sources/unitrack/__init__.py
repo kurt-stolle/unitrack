@@ -1,5 +1,7 @@
 """
-Modules that peform tracking tasks.
+UniTrack
+
+========
 
 A tracker implements an algorithm to find a mapping from detections to 
 tracklets, i.e.:
