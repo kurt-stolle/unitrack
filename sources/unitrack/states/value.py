@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TypeAlias
 
 import torch
@@ -28,7 +30,9 @@ class Value(State):
         super().__init__()
         dtype = _cast_dtype(dtype)
 
-        self.register_buffer("values", torch.empty(0, dtype=dtype, requires_grad=False), persistent=False)
+        self.register_buffer(
+            "values", torch.empty(0, dtype=dtype, requires_grad=False), persistent=False
+        )
 
     def update(self, values: Tensor) -> None:
         self.values = values.detach()
@@ -61,7 +65,9 @@ class MeanValues(State):
             raise ValueError(f"No a valid data type: {dtype}!")
 
         self.window = window
-        self.register_buffer("values_history", torch.zeros((0,), dtype=dtype), persistent=False)
+        self.register_buffer(
+            "values_history", torch.zeros((0,), dtype=dtype), persistent=False
+        )
 
     def forward(self, values: Tensor) -> None:
         raise NotImplementedError

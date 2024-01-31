@@ -2,6 +2,8 @@
 PyTorch implementation of the Hungarian algorithm for solving the assignment problem.
 """
 
+from __future__ import annotations
+
 from typing import Tuple
 
 import torch
@@ -63,7 +65,11 @@ def hungarian_assignment(cost_matrix: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
     matches = torch.stack((rows, cols), dim=1)
 
     # Identify unmatched rows and columns
-    unmatched_rows = torch.tensor([i for i in range(N) if not (rows == i).any()], device=cost_matrix.device)
-    unmatched_cols = torch.tensor([j for j in range(M) if not (cols == j).any()], device=cost_matrix.device)
+    unmatched_rows = torch.tensor(
+        [i for i in range(N) if not (rows == i).any()], device=cost_matrix.device
+    )
+    unmatched_cols = torch.tensor(
+        [j for j in range(M) if not (cols == j).any()], device=cost_matrix.device
+    )
 
     return matches, unmatched_rows, unmatched_cols

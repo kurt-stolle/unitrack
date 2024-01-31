@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Tuple
 
 import torch
@@ -25,13 +27,17 @@ class Auction(Assignment):
 
         self.bid_size = bid_size
 
-    def _assign(self, cost_matrix: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def _assign(
+        self, cost_matrix: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         return auction_assignment(cost_matrix, self.bid_size)
 
 
 @torch.jit.script_if_tracing
 @torch.no_grad()
-def auction_assignment(cost_matrix: torch.Tensor, bid_size: float) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+def auction_assignment(
+    cost_matrix: torch.Tensor, bid_size: float
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     # Compute epsilon based on bid_size and the smaller dimension of the cost matrix
     eps = bid_size / min(cost_matrix.shape)
 
@@ -63,7 +69,9 @@ def auction_assignment(cost_matrix: torch.Tensor, bid_size: float) -> Tuple[torc
         bids.index_fill_(0, unassigned, 0)
         # bids.zero_()
         # Update bids for the highest values
-        bids[unassigned] = bids[unassigned].scatter_(dim=1, index=first_idx.view(-1, 1), src=bid_increments.view(-1, 1))
+        bids[unassigned] = bids[unassigned].scatter_(
+            dim=1, index=first_idx.view(-1, 1), src=bid_increments.view(-1, 1)
+        )
 
         # Get columns with bidders
         have_bidder = (bids > 0).int().sum(dim=0).nonzero().squeeze()
@@ -77,7 +85,9 @@ def auction_assignment(cost_matrix: torch.Tensor, bid_size: float) -> Tuple[torc
         cost[:, have_bidder] += high_bids
 
         # Temporarily unassign rows that were previously assigned to the current winning columns
-        ass[(ass.view(-1, 1) == have_bidder.view(1, -1)).sum(dim=1).nonzero().squeeze()] = -1
+        ass[
+            (ass.view(-1, 1) == have_bidder.view(1, -1)).sum(dim=1).nonzero().squeeze()
+        ] = -1
 
         # Assign high bidders to the winning columns
         ass[high_bidders] = have_bidder.squeeze()
@@ -91,6 +101,11 @@ def auction_assignment(cost_matrix: torch.Tensor, bid_size: float) -> Tuple[torc
     matches = torch.stack([idx, ass], dim=1)
     matches = matches[ass >= 0]
     unmatched_rows = ass[ass < 0]
-    unmatched_cols = (torch.arange(cost_matrix.shape[1])[None, :] != ass[:, None]).all(dim=0).nonzero().squeeze()
+    unmatched_cols = (
+        (torch.arange(cost_matrix.shape[1])[None, :] != ass[:, None])
+        .all(dim=0)
+        .nonzero()
+        .squeeze()
+    )
 
     return matches, unmatched_rows, unmatched_cols

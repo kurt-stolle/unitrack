@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import cast
 
 import pytest
@@ -14,20 +16,29 @@ def test_lost_stage():
         for max_lost in range(1, num_frames):
             stage_lost = stages.Lost(max_lost=max_lost)
 
-            cs = TensorDict.from_dict({"_frame": torch.arange(num_frames, dtype=torch.long)})
+            cs = TensorDict.from_dict(
+                {"_frame": torch.arange(num_frames, dtype=torch.long)}
+            )
             ds = TensorDict.from_dict(
-                {"_frame": torch.empty((0,), dtype=torch.long), "_index": torch.empty((0,), dtype=torch.long)}
+                {
+                    "_frame": torch.empty((0,), dtype=torch.long),
+                    "_index": torch.empty((0,), dtype=torch.long),
+                }
             )
 
             assert len(cs) == num_frames, cs
             assert len(ds) == 0, ds
 
-            ctx = TensorDict.from_dict({"_frame": torch.tensor(num_frames) - 1, "_delta": torch.tensor(1.0)})
+            ctx = TensorDict.from_dict(
+                {"_frame": torch.tensor(num_frames) - 1, "_delta": torch.tensor(1.0)}
+            )
             cs, ds = stage_lost(ctx, cs, ds)
 
             assert len(cs) == num_frames - max_lost, cs
             assert len(ds) == 0, ds
-            assert torch.all(torch.arange(num_frames - max_lost) == cs.get("_frame")), cs.get("_frame")
+            assert torch.all(
+                torch.arange(num_frames - max_lost) == cs.get("_frame")
+            ), cs.get("_frame")
 
 
 @settings(

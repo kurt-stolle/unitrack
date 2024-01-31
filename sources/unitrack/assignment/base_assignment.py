@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import abstractmethod
 from typing import Tuple
 
@@ -19,7 +21,9 @@ class Assignment(torch.nn.Module):
         self.threshold = threshold
 
     @torch.jit.script_if_tracing
-    def forward(self, cost_matrix: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(
+        self, cost_matrix: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Solve the cost matrix
 
@@ -42,7 +46,9 @@ class Assignment(torch.nn.Module):
         return self._assign(cost_matrix)
 
     @staticmethod
-    def _no_match(cost_matrix: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def _no_match(
+        cost_matrix: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         cs_num, ds_num = cost_matrix.shape
         return (
             torch.empty((0, 2), dtype=torch.long),
@@ -51,5 +57,7 @@ class Assignment(torch.nn.Module):
         )
 
     @abstractmethod
-    def _assign(self, cost_matrix: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def _assign(
+        self, cost_matrix: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         raise NotImplementedError

@@ -3,15 +3,16 @@ This package implements the cost functions that are used to compute the assignme
 detections.
 """
 
-from abc import abstractmethod
+from __future__ import annotations
 
-import typing as T
 import enum as E
 import itertools
+import typing as T
+from abc import abstractmethod
+
 import torch
 import torch.nn as nn
 from tensordict import TensorDictBase
-
 
 __all__ = []
 
@@ -149,7 +150,9 @@ def _pad_degenerate_boxes(boxes: torch.Tensor) -> torch.Tensor:
     return boxes
 
 
-def _box_diou_iou(boxes1: torch.Tensor, boxes2: torch.Tensor, eps: float) -> T.Tuple[torch.Tensor, torch.Tensor]:
+def _box_diou_iou(
+    boxes1: torch.Tensor, boxes2: torch.Tensor, eps: float
+) -> T.Tuple[torch.Tensor, torch.Tensor]:
     """
     IoU with penalized center-distance
     """
@@ -173,7 +176,10 @@ def _box_diou_iou(boxes1: torch.Tensor, boxes2: torch.Tensor, eps: float) -> T.T
 
     # The distance IoU is the IoU penalized by a normalized
     # distance between boxes' centers squared.
-    return iou - ((centers_distance_squared) / diagonal_distance_squared.clamp(eps)), iou
+    return (
+        iou - ((centers_distance_squared) / diagonal_distance_squared.clamp(eps)),
+        iou,
+    )
 
 
 def _complete_box_iou(boxes1: torch.Tensor, boxes2: torch.Tensor, eps) -> torch.Tensor:
@@ -188,7 +194,9 @@ def _complete_box_iou(boxes1: torch.Tensor, boxes2: torch.Tensor, eps) -> torch.
     w_gt = boxes2[:, 2] - boxes2[:, 0]
     h_gt = boxes2[:, 3] - boxes2[:, 1]
 
-    v = (4 / (torch.pi**2)) * torch.pow(torch.atan(w_pred / h_pred) - torch.atan(w_gt / h_gt), 2)
+    v = (4 / (torch.pi**2)) * torch.pow(
+        torch.atan(w_pred / h_pred) - torch.atan(w_gt / h_gt), 2
+    )
 
     with torch.no_grad():
         alpha = v / (1 - iou + v).clamp(eps)
@@ -237,7 +245,9 @@ class Reduce(Cost):
         method: Reduction,
         weights: T.Optional[T.Sequence[float]] = None,
     ):
-        super().__init__(required_fields=itertools.chain(*(c.required_fields for c in costs)))
+        super().__init__(
+            required_fields=itertools.chain(*(c.required_fields for c in costs))
+        )
 
         if isinstance(method, str):
             method = Reduction(method)
@@ -247,7 +257,10 @@ class Reduce(Cost):
         if weights is None:
             weights = [1.0] * len(costs)
 
-        self.register_buffer("weights", torch.tensor(weights, dtype=torch.float32).unsqueeze_(-1).unsqueeze_(-1))
+        self.register_buffer(
+            "weights",
+            torch.tensor(weights, dtype=torch.float32).unsqueeze_(-1).unsqueeze_(-1),
+        )
 
     def forward(self, cs: TensorDictBase, ds: TensorDictBase) -> torch.Tensor:
         costs = torch.stack([cost(cs, ds) for cost in self.costs])
@@ -308,7 +321,9 @@ class Distance(Cost):
         self.select = select  # type: ignore
         self.p = p_norm
 
-    def get_field(self, cs: TensorDictBase, ds: TensorDictBase) -> T.Tuple[torch.Tensor, torch.Tensor]:
+    def get_field(
+        self, cs: TensorDictBase, ds: TensorDictBase
+    ) -> T.Tuple[torch.Tensor, torch.Tensor]:
         ts_field = cs.get(self.field)
         ds_field = ds.get(self.field)
 

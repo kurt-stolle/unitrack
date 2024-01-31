@@ -1,13 +1,11 @@
+from __future__ import annotations
+
 from typing import Dict, List, Mapping, Sequence, Tuple, cast
 
 import torch
 import torch.nn as nn
 from tensordict import TensorDict, TensorDictBase
-from tensordict.nn import (
-    TensorDictModule,
-    TensorDictModuleBase,
-    TensorDictSequential,
-)
+from tensordict.nn import TensorDictModule, TensorDictModuleBase, TensorDictSequential
 
 from .constants import KEY_ACTIVE, KEY_FRAME, KEY_ID, KEY_INDEX, KEY_START
 from .stages import Stage

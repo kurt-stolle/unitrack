@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 import torch
 
@@ -60,9 +62,18 @@ def test_assignment_invoke(cost_matrix, solver):
 @pytest.mark.parametrize(
     "known_cost, known_matches",
     [
-        (torch.arange(9, dtype=torch.float).reshape(3, 3), torch.tensor([[0, 0], [1, 1], [2, 2]])),
-        (torch.arange(6, dtype=torch.float).reshape(2, 3), torch.tensor([[0, 0], [1, 1]])),
-        (torch.arange(6, 0, -1, dtype=torch.float).reshape(2, 3), torch.tensor([[0, 2], [1, 1]])),
+        (
+            torch.arange(9, dtype=torch.float).reshape(3, 3),
+            torch.tensor([[0, 0], [1, 1], [2, 2]]),
+        ),
+        (
+            torch.arange(6, dtype=torch.float).reshape(2, 3),
+            torch.tensor([[0, 0], [1, 1]]),
+        ),
+        (
+            torch.arange(6, 0, -1, dtype=torch.float).reshape(2, 3),
+            torch.tensor([[0, 2], [1, 1]]),
+        ),
     ],
 )
 def test_assignment_known(known_cost, known_matches, solver):
@@ -79,4 +90,7 @@ def test_assignment_known(known_cost, known_matches, solver):
 
     matches = matches[matches[:, 0].argsort(dim=0).flatten(), :]
 
-    assert known_cost[matches[:, 0], matches[:, 1]].sum() <= known_cost[known_matches[:, 0], known_matches[:, 1]].sum()
+    assert (
+        known_cost[matches[:, 0], matches[:, 1]].sum()
+        <= known_cost[known_matches[:, 0], known_matches[:, 1]].sum()
+    )
