@@ -7,9 +7,9 @@ Jinja2==3.1.2
 sphinx-autodoc-typehints
 sphinx-serve==1.0.1
 sphinxcontrib-htmlhelp
--e git+https://github.com/pytorch/pytorch_sphinx_theme.git#egg=pytorch_sphinx_theme
 myst-parser
 docutils
+sphinx-rtd-theme
 
 torchvision
 tqdm
