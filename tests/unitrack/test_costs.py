@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import torch
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -15,7 +17,8 @@ def test_reduced():
         method=costs.Reduction.SUM,
     )
     res = red(
-        TensorDict.from_dict({"categories": torch.arange(3)}), TensorDict.from_dict({"categories": torch.arange(3)})
+        TensorDict.from_dict({"categories": torch.arange(3)}),
+        TensorDict.from_dict({"categories": torch.arange(3)}),
     )
     assert res.shape == (3, 3), res.shape
     assert res.diag().sum() == 6.0, res.diag().sum()

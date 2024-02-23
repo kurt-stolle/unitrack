@@ -1,5 +1,7 @@
 """
-Modules that peform tracking tasks.
+UniTrack
+
+========
 
 A tracker implements an algorithm to find a mapping from detections to 
 tracklets, i.e.:
@@ -23,7 +25,9 @@ Lost
 
 """
 
-__version__ = "4.6.10"
+from __future__ import annotations
+
+__version__ = "4.6.11"
 
 from . import assignment, costs, stages, states  # noqa: F401
 from .constants import *  # noqa: F401, F403

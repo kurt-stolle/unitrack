@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import cast
 
 import pytest
@@ -29,9 +31,15 @@ def test_tracker():
     trk = MultiStageTracker(
         fields=[
             TensorDictModule(nn.Identity(), in_keys=["pos_key"], out_keys=["pos"]),
-            TensorDictModule(nn.Identity(), in_keys=["pred_class"], out_keys=["categories"]),
+            TensorDictModule(
+                nn.Identity(), in_keys=["pred_class"], out_keys=["categories"]
+            ),
         ],
-        stages=[stages.Association(cost=costs.Distance("pos"), assignment=assignment.Jonker(10))],
+        stages=[
+            stages.Association(
+                cost=costs.Distance("pos"), assignment=assignment.Jonker(10)
+            )
+        ],
     )
 
     mem = TrackletMemory(

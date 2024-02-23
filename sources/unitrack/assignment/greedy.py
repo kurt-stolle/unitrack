@@ -5,6 +5,8 @@ algorithm is not guaranteed to find the optimal solution, but it is fast
 and simple to implement.
 """
 
+from __future__ import annotations
+
 from typing import Tuple
 
 import torch
@@ -19,13 +21,17 @@ class Greedy(Assignment):
     See :func:`.greedy_assignment` for details.
     """
 
-    def _assign(self, cost_matrix: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def _assign(
+        self, cost_matrix: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         return greedy_assignment(cost_matrix)
 
 
 @torch.jit.script_if_tracing
 @torch.no_grad()
-def greedy_assignment(cost_matrix: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+def greedy_assignment(
+    cost_matrix: torch.Tensor,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Performs a greedy assignment algorithm on a cost matrix, assigning pairs of elements (rows and columns) based on
     the minimum cost, with a threshold as the stopping condition.
@@ -48,7 +54,9 @@ def greedy_assignment(cost_matrix: torch.Tensor) -> Tuple[torch.Tensor, torch.Te
 
     """
     N, M = cost_matrix.shape
-    matches = torch.full((min(N, M), 2), -1, dtype=torch.long, device=cost_matrix.device)
+    matches = torch.full(
+        (min(N, M), 2), -1, dtype=torch.long, device=cost_matrix.device
+    )
     unmatched_rows = torch.arange(N, dtype=torch.long, device=cost_matrix.device)
     unmatched_cols = torch.arange(M, dtype=torch.long, device=cost_matrix.device)
 
@@ -60,7 +68,9 @@ def greedy_assignment(cost_matrix: torch.Tensor) -> Tuple[torch.Tensor, torch.Te
         if not torch.isfinite(min_val):
             break
 
-        matches[match_count] = torch.tensor([row, col], dtype=torch.long, device=cost_matrix.device)
+        matches[match_count] = torch.tensor(
+            [row, col], dtype=torch.long, device=cost_matrix.device
+        )
         match_count += 1
 
         cost_matrix[row, :] = torch.inf

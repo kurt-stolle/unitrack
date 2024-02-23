@@ -31,47 +31,105 @@ dependencies = [
 
 dynamic = ["version"]
 
+[tool.setuptools.package_data]
+unitrack = ["py.typed"]
+
 [tool.setuptools.dynamic]
 version = { attr = "unitrack.__version__" }
-
 [tool.setuptools.packages.find]
 where = ["sources"]
-include = ["*"]
-exclude = []
+include = ["uni*"]
+exclude = ["tests"]
+namespaces = false
 
 [project.optional-dependencies]
-docs = ["sphinx", "sphinx-rtd-theme"]
+
 tests = [
     "hypothesis",
-    "bandit[toml]==1.7.5",
-    "black==23.1.0",
-    "check-manifest==0.49",
-    "flake8-bugbear==23.3.12",
+    "bandit[toml]",
+    "black>=23.10.0",
+    "check-manifest",
+    "flake8",
+    "flake8-bugbear",
     "flake8-docstrings",
     "flake8-formatter_junit_xml",
-    "flake8",
+    "flake8-import-conventions",
+    "flake8-unused-arguments",
+    "flake8-comprehensions",
+    "flake8-errmsg",
+    "flake8-logging-format",
+    "flake8-pie",
+    "flake8-pyi",
+    "flake8-pytest-style",
+    "flake8-return",
+    "flake8-2020",
+    "flake8-executable",
+    "flake8-simplify",
+    "flake8-black",
     "flake8-pyproject",
-    "pre-commit==3.1.1",
-    "pylint==2.17.0",
+    "pre-commit",
+    "pygrep",
+    "isort",
+    "pandas-vet",
+    "refurb",
+    "pylint",
     "pylint_junit",
-    "pytest-cov==4.0.0",
-    "pytest-mock<3.10.1",
+    "pytest",
+    "pytest-sugar",
+    "pytest-xdist",
+    "pytest-benchmark",
+    "pytest-cov",
+    "pytest-mock",
     "pytest-runner",
-    "pytest==7.2.2",
     "pytest-github-actions-annotate-failures",
-    "shellcheck-py==0.9.0.2",
+    "shellcheck-py",
+    "pylint",
+    "mypy",
+    "autoflake",
+    "pydocstyle",
+    "pyre-check",
+    "pydocstringformatter",
+    "pyrefact",
+    "pyflakes",
+    "mccabe",
 ]
+notebooks = [
+    "jupyterlab",
+    "ipywidgets",
+    "ipykernel",
+    "ipython-autotime",
+    "matplotlib",
+    "seaborn",
+]
+docs = ["sphinx", "sphinx-rtd-theme", "numpydoc"]
+
+[tool.pydocstringformatter]
+write = true
+strip-whitespaces = true
+split-summary-body = false
+numpydoc-section-hyphen-length = false
 
 [tool.bandit]
-exclude_dirs = ["build", "dist", "tests", "scripts"]
+exclude_dirs = [
+    "build",
+    "dist",
+    "tests",
+    "scripts",
+    "configs",
+    "docs",
+    "output",
+    "datasets",
+    "dependencies",
+    "benchmarks",
+]
 number = 4
 recursive = true
 targets = "sources"
 
 [tool.black]
-line-length = 120
+line-length = 88
 fast = true
-target-version = ['py310']
+target-version = ['py311']
 
 [tool.coverage.run]
 branch = true
@@ -80,8 +138,53 @@ branch = true
 fail_under = 100
 
 [tool.flake8]
-max-line-length = 120
-select = "F,E,W,B,B901,B902,B903"
+docstring-convention = "numpy"
+max-complexity = 50
+max-line-length = 80
+extend-select = [
+    "F",    # flake8
+    "B",    # flake8-bugbear
+    "B901", # 
+    "B902", # 
+    "B903", #
+    "BLK",  # flake8-black
+    "C",    # mccabe
+    "I",    # isort
+    "ARG",  # flake8-unused-arguments
+    "C4",   # flake8-comprehensions
+    "EM",   # flake8-errmsg
+    "ICN",  # flake8-import-conventions
+    "G",    # flake8-logging-format
+    "PGH",  # pygrep-hooks
+    "PIE",  # flake8-pie
+    "PL",   # pylint
+    "PT",   # flake8-pytest-style
+    "PTH",  # flake8-use-pathlib
+    "RET",  # flake8-return
+    "SIM",  # flake8-simplify
+    "T20",  # flake8-print
+    "UP",   # pyupgrade
+    "YTT",  # flake8-2020
+    "EXE",  # flake8-executable
+    "NPY",  # NumPy specific rules
+    "PD",   # pandas-vet
+    "FURB", # refurb
+    "PYI",  # flake8-pyi
+]
+per-file-ignores = """
+    __init__.py: F401, F403
+    __init__.pyi: F401, F403
+    tests/**: T20
+    tests/**/conftest.py: F401, F403, E402
+"""
+extend-ignore = [
+    # "E203", # whitespace before ':'
+    "E501", # line too long
+    # "E722", # do not use bare 'except'
+    # "W503", # line break before binary operator
+    "B001", # assert used
+    "D200", # One-line docstring should fit on one line with quotes
+]
 exclude = [
     ".eggs",
     ".git",
@@ -93,30 +196,62 @@ exclude = [
     "pywin32",
     "tests",
     "swagger_client",
+    # "*.pyi",
 ]
-ignore = ["E722", "B001", "W503", "E203"]
+
 
 [tool.pyright]
 include = ["sources"]
-exclude = ["**/node_modules", "**/__pycache__"]
-venv = "env310"
 reportPrivateImportUsage = false
 reportMissingImports = true
 reportMissingTypeStubs = false
-pythonVersion = "3.10"
+strictListInference = true
+strictSetInference = true
+reportImportCycles = true
+reportMatchNotExhaustive = true
+reportShadowedImports = true
+reportImplicitOverride = "warning"
+pythonVersion = "3.11"
 pythonPlatform = "Linux"
+exclude = ["datasets", "dependencies", "output", "**/prototypes"]
 executionEnvironments = [{ root = "sources" }]
 
+[tool.autoflake]
+check = false
+exclude = [
+    "configs/**/*",
+    "__init__.py",
+    "tests/**/*",
+    "configs/**/*",
+    "docs/**.*",
+]
+imports = [
+    "requests",
+    "torch",
+    "transformers",
+    "torchvision",
+    "tensordict",
+    "unitrack",
+    "unicore",
+    "evaluators",
+    "tensordict",
+    "einops",
+    "timm",
+]
+recursive = true
+ignore_init_module_imports = true
+expand_star_imports = true
+
 [tool.pytest.ini_options]
-addopts = "--cov-report xml:coverage.xml --cov sources --cov-fail-under 0 --cov-append -m 'not integration'"
+addopts = "--doctest-modules -m 'not integration' -m 'not gpu' --benchmark-disable"
 pythonpath = ["sources"]
 testpaths = "tests"
 junit_family = "xunit2"
+junit_suite_name = "tests"
 markers = [
     "integration: marks as integration test",
     "notebooks: marks as notebook test",
     "gpu: marks as gpu test",
-    "spark: marks tests which need Spark",
     "slow: marks tests as slow",
     "unit: fast offline tests",
 ]
@@ -134,12 +269,13 @@ extension-pkg-whitelist = [
 ]
 ignore = "CVS"
 ignore-patterns = "test.*?py,conftest.py"
-init-hook = 'import sys; sys.setrecursionlimit(8 * sys.getrecursionlimit())'
+init-hook = 'import sys; sys.setrecursionlimit(4 * sys.getrecursionlimit())'
 jobs = 0
 limit-inference-results = 100
 persistent = "yes"
 suggestion-mode = "yes"
 unsafe-load-any-extension = "no"
+include = ["sources"]
 
 [tool.pylint.'MESSAGES CONTROL']
 enable = "c-extension-no-member"
@@ -176,7 +312,7 @@ variable-naming-style = "snake_case"
 ignore-long-lines = "^\\s*(# )?.*['\"]?<?https?://\\S+>?"
 indent-after-paren = 4
 indent-string = '    '
-max-line-length = 120
+max-line-length = 88
 max-module-lines = 1000
 single-line-class-stmt = "no"
 single-line-if-stmt = "no"
@@ -249,8 +385,14 @@ deprecated-modules = "optparse,tkinter.tix"
 overgeneral-exceptions = ["BaseException", "Exception"]
 
 [tool.isort]
-multi_line_output = 5
-include_trailing_comma = true
-force_grid_wrap = 0
-line_length = 80
 profile = "black"
+add_imports = ["from __future__ import annotations"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+disallow_untyped_defs = false
+warn_unused_ignores = true
+check_untyped_defs = false
+no_implicit_optional = true
+inclulde = ["sources"]
