@@ -49,10 +49,14 @@ class TrackletMemory(torch.nn.Module):
         self.auto_reset = auto_reset  # reset the memory when the current frame is larger than the stored frame
 
         self.register_buffer(
-            "frame", torch.tensor(-1, dtype=torch.int, requires_grad=False)
+            "frame",
+            torch.tensor(-1, dtype=torch.int, requires_grad=False),
+            persistent=False,
         )
         self.register_buffer(
-            "count", torch.tensor(0, dtype=torch.int, requires_grad=False)
+            "count",
+            torch.tensor(0, dtype=torch.int, requires_grad=False),
+            persistent=False,
         )
 
     def __len__(self) -> int:

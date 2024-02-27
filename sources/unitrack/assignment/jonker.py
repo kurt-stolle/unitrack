@@ -43,12 +43,8 @@ def jonker_volgenant_assignment(
         if mx >= 0:
             matches.append([ix, mx])
 
-    unmatched_a = np.where(x < 0)[0]
-    unmatched_b = np.where(y < 0)[0]
-    matches = np.asarray(matches)
+    unmatched_a = torch.from_numpy(np.where(x < 0)[0]).long()
+    unmatched_b = torch.from_numpy(np.where(y < 0)[0]).long()
+    matches = torch.from_numpy(np.asarray(matches)).long()
 
-    return (
-        torch.from_numpy(matches).long(),
-        torch.from_numpy(unmatched_a).long(),
-        torch.from_numpy(unmatched_b).long(),
-    )
+    return matches, unmatched_a, unmatched_b
