@@ -7,7 +7,7 @@ import torch.nn as nn
 from tensordict import TensorDict, TensorDictBase
 from tensordict.nn import TensorDictModule, TensorDictModuleBase, TensorDictSequential
 
-from .constants import KEY_ACTIVE, KEY_FRAME, KEY_ID, KEY_INDEX, KEY_START
+from .constants import DEBUG, KEY_ACTIVE, KEY_FRAME, KEY_ID, KEY_INDEX, KEY_START
 from .stages import Stage
 
 
@@ -60,9 +60,10 @@ class MultiStageTracker(nn.Module):
 
         # Create a dict of new tracklet candidates by passing the input state to
         # each field
+        new_index = torch.arange(num, device=inp.device, dtype=torch.int64)
         new = TensorDict(
-            {KEY_INDEX: torch.arange(num, device=inp.device, dtype=torch.int64)},
-            batch_size=[num],
+            {KEY_INDEX: new_index},
+            batch_size=new_index.shape,
             device=inp.device,
             _run_checks=False,
         )
@@ -76,22 +77,19 @@ class MultiStageTracker(nn.Module):
 
         # Candidates for matching are all active observed tracklets
         active_mask = obs.get(KEY_ACTIVE)
-        if active_mask.any():
-            obs_candidates = obs._get_sub_tensordict(active_mask)
-            for stage in self.stages:
-                obs_candidates, new = stage(ctx, obs_candidates, new)
-                if len(obs_candidates) == 0 or len(new) == 0:
-                    break
+        obs_candidates = obs._get_sub_tensordict(active_mask)
+        for stage in self.stages:
+            if obs_candidates.batch_size[0] == 0 or new.batch_size[0] == 0:
+                break
+            obs_candidates, new = stage(ctx, obs_candidates, new)
 
-            if len(obs_candidates) > 0 and obs_candidates.batch_size[0] > 0:
-                # tensor: torch.Tensor = obs_candidates.get(KEY_ACTIVE)
-                # tensor.fill_(False)
-                # obs_candidates.fill_(KEY_ACTIVE, False)
-                obs_candidates.set_(
-                    KEY_ACTIVE,
-                    torch.full(
-                        obs_candidates.batch_size, False, device=obs_candidates.device
-                    ),
-                )
+        obs_unmatched_mask = obs.get(KEY_INDEX) < 0
+
+        if DEBUG:
+            print(
+                f"TRACKER COMPLETE: remaining {obs_unmatched_mask.int().sum().item()}/{len(obs)} unmatched observations"
+            )
+        obs.set_at_(KEY_ACTIVE, False, obs_unmatched_mask)
+        obs.set_at_(KEY_ACTIVE, True, ~obs_unmatched_mask)
 
         return obs, new

@@ -42,17 +42,17 @@ class Value(State):
         return f"{self.__class__.__name__}({self.memory.dtype}, shape={self.memory.shape}){{{self.memory.tolist()}}}"
 
     def update(self, memory: Tensor) -> None:
-        self.memory = memory.detach()
+        self.memory = memory.clone()
 
     def extend(self, memory: Tensor) -> None:
         memory_cat = torch.cat([self.memory, memory], dim=0)
-        self.memory = memory_cat
+        self.memory = memory_cat.contiguous()
 
     def observe(self) -> Tensor:
-        return self.memory
+        return self.memory.clone()
 
     def reset(self) -> None:
-        self.memory = self.memory[:0]
+        self.memory = self.memory[:0].contiguous()
 
 
 class Meanmemory(State):

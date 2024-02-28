@@ -5,7 +5,7 @@ import typing as T
 from tensordict import TensorDictBase
 
 from ..assignment import Assignment
-from ..constants import KEY_FRAME, KEY_ID, KEY_INDEX
+from ..constants import DEBUG, KEY_FRAME, KEY_ID, KEY_INDEX
 from ..costs import Cost
 from .base_stage import Stage
 
@@ -37,17 +37,18 @@ class Association(Stage):
     def forward(
         self, ctx: TensorDictBase, cs: TensorDictBase, ds: TensorDictBase
     ) -> T.Tuple[TensorDictBase, TensorDictBase]:
+        if DEBUG:
+            print(
+                f"Associating {cs.batch_size[0]} candidates / "
+                f"{ds.batch_size[0]} detections"
+            )
+
         if len(cs) == 0 or len(ds) == 0:
             return cs, ds
 
         cost_matrix = self.cost(cs, ds)
 
         matches, cs_fail_idx, ds_fail_idx = self.assignment(cost_matrix)
-
-        print(f"cs device: {cs.device}")
-        print(f"ds device: {ds.device}")
-        print(f"cost amatrix device: {cost_matrix.device}")
-        print(f"matches device: {matches.device}")
 
         if len(matches) > 0:
             cs_match = cs._get_sub_tensordict(matches[:, 0])
@@ -59,26 +60,3 @@ class Association(Stage):
         ds_fail = ds._get_sub_tensordict(ds_fail_idx)
 
         return cs_fail, ds_fail
-
-    def match(self, cs: TensorDictBase, ds: TensorDictBase) -> None:
-        """
-        Match candidates to detections. Propagates data and IDs from detections to candidates.
-
-        Parameters
-        ----------
-        cs
-            Candidates
-        ds
-            Detections
-        """
-        cs_keys = T.cast(T.List[str], cs.keys())
-        ds_keys = T.cast(T.List[str], ds.keys())
-        for key in ds_keys:
-            if key.startswith("_"):
-                continue
-            if key not in cs_keys:
-                continue
-            cs.set_(key, ds.get(key))
-        # pass the index of the detection such that it can be retrieved later when
-        # collecting the retuned ID
-        cs.set_(KEY_INDEX, ds.get(KEY_INDEX))

@@ -10,7 +10,15 @@ import torch
 from tensordict import TensorDict, TensorDictBase
 from tensordict.nn import TensorDictSequential
 
-from .constants import KEY_ACTIVE, KEY_DELTA, KEY_FRAME, KEY_ID, KEY_INDEX, KEY_START
+from .constants import (
+    DEBUG,
+    KEY_ACTIVE,
+    KEY_DELTA,
+    KEY_FRAME,
+    KEY_ID,
+    KEY_INDEX,
+    KEY_START,
+)
 from .states import State
 from .states import Value as ValueState
 
@@ -109,9 +117,11 @@ class TrackletMemory(torch.nn.Module):
         current_ids = obs.get(KEY_ID)
         if len(current_ids) > 0:
             extend_ids += current_ids.max()
-            print(f"Adding IDs: {extend_ids}")
-        else:
-            print(f"This is frame 0, because we have {current_ids.tolist()}")
+
+        if DEBUG:
+            print(f"Current IDs: {current_ids}")
+            print(f"Extend IDs: {extend_ids}")
+
         if extend_num > 0 and extend_ids.max() >= self.max_id:
             msg = (
                 f"Most recent ID {extend_ids.max()} has a value larger than the "
@@ -153,9 +163,6 @@ class TrackletMemory(torch.nn.Module):
                     )
                 state.extend(state_ext)
 
-            print(f"State {id} after: {state.memory}")
-            print(f"State {id} observed: {state.observe()}")
-
         # Create the return value: a list of IDs to assign to detections in the next
         # frame.
         result_ids = torch.full(
@@ -166,11 +173,34 @@ class TrackletMemory(torch.nn.Module):
             requires_grad=False,
         )
         active_indices = obs.get_at(KEY_INDEX, active_mask)
-        result_ids[active_indices] = obs.get_at(KEY_ID, active_mask)
+        assert (
+            active_indices >= 0
+        ).all(), f"Active indices are not correct! Got: {active_indices.tolist()}"
+        result_ids[active_indices] = active_ids = obs.get_at(
+            KEY_ID, active_mask
+        ).clone()
+
+        if DEBUG:
+            print("Propagated IDs: ")
+            for _idx, _id in zip(active_indices, active_ids):
+                print(f"   {_id} -> detection {_idx}")
+
         # if active_num > 0:
         #    ids[obs_active.get(KEY_INDEX)] = obs_active.get(KEY_ID)
 
         extend_indices = new.get(KEY_INDEX)
+        assert not (extend_indices < 0).any(), (
+            "New detections have negative indices! " f"Got: {extend_indices.tolist()}"
+        )
+        assert not (extend_indices > total_num).any(), (
+            "New detections have indices larger than the total amount of detections! "
+            f"Got: {extend_indices.tolist()}"
+        )
+
+        assert not torch.isin(extend_indices, active_indices).any(), (
+            "New detections have the same index as active detections! "
+            f"Got: {extend_indices.tolist()}"
+        )
         result_ids[extend_indices] = extend_ids
 
         # if extend_num > 0:
@@ -183,7 +213,7 @@ class TrackletMemory(torch.nn.Module):
         self.frame.fill_(frame)
         self.count += 1
 
-        return result_ids
+        return result_ids.contiguous()
 
     @torch.jit.export
     def read(self, frame: int) -> tuple[TensorDictBase, TensorDictBase]:
@@ -224,7 +254,9 @@ class TrackletMemory(torch.nn.Module):
         )
 
         obs = TensorDict.from_dict(
-            {id: state.evolve(delta) for id, state in self.states.items()}
+            {id: state.evolve(delta) for id, state in self.states.items()},
+            batch_dims=1,
+            device=self.frame.device,
         )
         obs[KEY_INDEX] = torch.full(
             obs.batch_size[:1],
@@ -241,16 +273,11 @@ class TrackletMemory(torch.nn.Module):
         """
         Reset the states of this ``Tracklets`` module.
         """
+
+        if DEBUG:
+            print("Resetting memory")
         self.frame.fill_(-1)
         self.count.fill_(0)
 
         for state in self.states.values():
             state.reset()  # type: ignore
-
-
-def _safe_masked_set_at(
-    obs: TensorDictBase, key: str, value: torch.Tensor, mask: torch.Tensor
-) -> None:
-    if not mask.any():
-        return
-    obs.set_at_(key, value, mask)

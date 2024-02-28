@@ -41,7 +41,7 @@ class Assignment(torch.nn.Module):
         if min(cost_matrix.shape) == 0:
             return self._no_match(cost_matrix)
 
-        cost_matrix = cost_matrix * (cost_matrix < self.threshold).type_as(cost_matrix)
+        cost_matrix = torch.where(cost_matrix < self.threshold, cost_matrix, torch.inf)
 
         return self._assign(cost_matrix)
 

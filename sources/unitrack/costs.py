@@ -124,7 +124,9 @@ class BoxIoU(MaskIoU):
         cs_field = _pad_degenerate_boxes(cs)
         ds_field = _pad_degenerate_boxes(ds)
 
-        return 1.0 - _complete_box_iou(cs_field, ds_field, self.eps)
+        iou = _complete_box_iou(cs_field, ds_field, self.eps)
+
+        return 1.0 - iou
 
 
 def _naive_mask_iou(cs: torch.Tensor, ds: torch.Tensor, eps: float) -> torch.Tensor:
@@ -354,7 +356,7 @@ class Cosine(Distance):
 
     def compute(self, cs: TensorDictBase, ds: TensorDictBase):
         ts_field, ds_field = self.get_field(cs, ds)
-        return 1.0 - _cosine_similarity(ts_field, ds_field, self.eps)
+        return _cosine_distance(ts_field, ds_field, self.eps)
 
 
 class Softmax(Distance):
@@ -368,14 +370,14 @@ class Softmax(Distance):
 
     def compute(self, cs: TensorDictBase, ds: TensorDictBase):
         ts_field, ds_field = self.get_field(cs, ds)
-        return 1.0 - _softmax_similarity(ts_field, ds_field)
+        return _softmax_distance(ts_field, ds_field)
 
 
-def _cosine_similarity(a: torch.Tensor, b: torch.Tensor, eps) -> torch.Tensor:
+def _cosine_distance(a: torch.Tensor, b: torch.Tensor, eps) -> torch.Tensor:
     a_norm = _stable_norm(a, eps)
     b_norm = _stable_norm(b, eps)
 
-    return a_norm @ b_norm.mT
+    return 1.0 - a_norm @ b_norm.mT
 
 
 def _stable_norm(t: torch.Tensor, eps):
@@ -383,8 +385,12 @@ def _stable_norm(t: torch.Tensor, eps):
     return t / norm.clamp_min(eps)
 
 
-def _softmax_similarity(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+def _softmax_distance(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     mul = torch.mm(a, b.T)
     a2b = mul.softmax(dim=0)
     b2a = mul.softmax(dim=1)
     return (a2b + b2a) / 2.0
+
+
+def _radial_basis_distance(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+    return torch.exp(-torch.cdist(a, b, p=2))
