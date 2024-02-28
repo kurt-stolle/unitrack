@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Tuple
+import typing as T
 
 from tensordict import TensorDictBase
 
@@ -36,7 +36,7 @@ class Association(Stage):
 
     def forward(
         self, ctx: TensorDictBase, cs: TensorDictBase, ds: TensorDictBase
-    ) -> Tuple[TensorDictBase, TensorDictBase]:
+    ) -> T.Tuple[TensorDictBase, TensorDictBase]:
         if len(cs) == 0 or len(ds) == 0:
             return cs, ds
 
@@ -44,14 +44,19 @@ class Association(Stage):
 
         matches, cs_fail_idx, ds_fail_idx = self.assignment(cost_matrix)
 
+        print(f"cs device: {cs.device}")
+        print(f"ds device: {ds.device}")
+        print(f"cost amatrix device: {cost_matrix.device}")
+        print(f"matches device: {matches.device}")
+
         if len(matches) > 0:
-            cs_match = cs.get_sub_tensordict(matches[:, 0])
-            ds_match = ds.get_sub_tensordict(matches[:, 1])
+            cs_match = cs._get_sub_tensordict(matches[:, 0])
+            ds_match = ds._get_sub_tensordict(matches[:, 1])
 
             self.match(cs_match, ds_match)
 
-        cs_fail = cs.get_sub_tensordict(cs_fail_idx)
-        ds_fail = ds.get_sub_tensordict(ds_fail_idx)
+        cs_fail = cs._get_sub_tensordict(cs_fail_idx)
+        ds_fail = ds._get_sub_tensordict(ds_fail_idx)
 
         return cs_fail, ds_fail
 
@@ -66,11 +71,14 @@ class Association(Stage):
         ds
             Detections
         """
-        for key, value in ds.items():
+        cs_keys = T.cast(T.List[str], cs.keys())
+        ds_keys = T.cast(T.List[str], ds.keys())
+        for key in ds_keys:
             if key.startswith("_"):
                 continue
-            if key not in cs.keys():
+            if key not in cs_keys:
                 continue
-            cs.set_(key, value)
-
+            cs.set_(key, ds.get(key))
+        # pass the index of the detection such that it can be retrieved later when
+        # collecting the retuned ID
         cs.set_(KEY_INDEX, ds.get(KEY_INDEX))

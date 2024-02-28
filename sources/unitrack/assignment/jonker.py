@@ -31,6 +31,7 @@ def jonker_volgenant_assignment(
     TODO: PyTorch implementation
     """
 
+    device = cost_matrix.device
     cost_matrix = cost_matrix.detach().cpu().numpy()
 
     matches, unmatched_a, unmatched_b = [], [], []
@@ -47,4 +48,4 @@ def jonker_volgenant_assignment(
     unmatched_b = torch.from_numpy(np.where(y < 0)[0]).long()
     matches = torch.from_numpy(np.asarray(matches)).long()
 
-    return matches, unmatched_a, unmatched_b
+    return matches.to(device), unmatched_a.to(device), unmatched_b.to(device)

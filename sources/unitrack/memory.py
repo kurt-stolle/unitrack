@@ -1,5 +1,9 @@
+"""
+
+"""
 from __future__ import annotations
 
+import typing as T
 from typing import Mapping, Optional, cast
 
 import torch
@@ -30,7 +34,11 @@ class TrackletMemory(torch.nn.Module):
     states: Mapping[str, State]
 
     def __init__(
-        self, states: Mapping[str, State], max_id=1000, auto_reset=True, fps=15
+        self,
+        states: Mapping[str, State],
+        max_id: int = 1000,
+        auto_reset: bool = True,
+        fps: int = 15,
     ):
         super().__init__()
 
@@ -40,9 +48,9 @@ class TrackletMemory(torch.nn.Module):
         self.fps = fps
         self.max_id = max_id
         self.states = torch.nn.ModuleDict()  # type: ignore
-        self.states[KEY_FRAME] = ValueState(torch.int)
-        self.states[KEY_START] = ValueState(torch.int)
-        self.states[KEY_ID] = ValueState(torch.int)
+        self.states[KEY_FRAME] = ValueState(torch.int64)
+        self.states[KEY_START] = ValueState(torch.int64)
+        self.states[KEY_ID] = ValueState(torch.int64)
         self.states[KEY_ACTIVE] = ValueState(torch.bool)
         self.states.update(states)
 
@@ -75,10 +83,16 @@ class TrackletMemory(torch.nn.Module):
         frame = ctx.get(KEY_FRAME)
 
         # Update observations' states
-        obs_active = obs.get_sub_tensordict(obs.get(KEY_ACTIVE))
-        active_num = obs_active.batch_size[0]
-        if active_num > 0:
-            obs_active.set_(KEY_FRAME, frame)
+        active_mask = obs.get(KEY_ACTIVE)
+        # obs_active = obs.get_sub_tensordict(obs.get(KEY_ACTIVE))
+        # obs_active = obs[obs.get(KEY_ACTIVE)]
+        active_num = active_mask.to(torch.int).sum()
+        # if active_num > 0:
+        #    obs_active = obs_active.set(
+        #        KEY_FRAME,
+        #        frame.expand(obs_active.batch_size[:1]),
+        #    )
+        obs.set_at_(KEY_FRAME, frame.to(obs.device), active_mask)
 
         # Read the amount of added instances from the batch size of the new detections TensorDict.
         extend_num = new.batch_size[0]
@@ -86,71 +100,90 @@ class TrackletMemory(torch.nn.Module):
 
         # Assign IDs to the new detections.
         extend_ids = torch.arange(
-            extend_num, dtype=torch.long, device=self.frame.device, requires_grad=False
+            1,
+            extend_num + 1,
+            dtype=torch.long,
+            device=self.frame.device,
+            requires_grad=False,
         )
-        extend_ids += 1
-        if len(obs.get(KEY_ID)) > 0:
-            extend_ids += obs.get(KEY_ID).max()
-        assert isinstance(extend_ids, torch.Tensor), type(extend_ids)
-        assert extend_ids.max() < self.max_id, (
-            extend_ids.max().cpu().item(),
-            self.max_id,
-        )
+        current_ids = obs.get(KEY_ID)
+        if len(current_ids) > 0:
+            extend_ids += current_ids.max()
+            print(f"Adding IDs: {extend_ids}")
+        else:
+            print(f"This is frame 0, because we have {current_ids.tolist()}")
+        if extend_num > 0 and extend_ids.max() >= self.max_id:
+            msg = (
+                f"Most recent ID {extend_ids.max()} has a value larger than the "
+                f"maximum allowed ID {self.max_id}!"
+            )
+            raise RuntimeError(msg)
 
         # Update and/or extend the states.
         for id, state in self.states.items():
             # State.foward = (update, extend) -> None.
             state_upd: torch.Tensor = obs.get(id)
-            state_ext: torch.Tensor
-
-            # Switch per special state key.
-            if id == KEY_ACTIVE:
-                state_ext = torch.ones(
-                    (extend_num,),
-                    dtype=torch.bool,
-                    device=self.frame.device,
-                    requires_grad=False,
-                )
-            elif id == KEY_FRAME or id == KEY_START:
-                state_ext = torch.full(
-                    (extend_num,),
-                    frame,
-                    dtype=torch.int,
-                    device=self.frame.device,
-                )
-            elif id == KEY_ID:
-                state_ext = extend_ids
-            elif id in new.keys():
-                state_ext = new.get(id)
-            else:
-                raise ValueError(
-                    f"State '{id}' does not match a field in {new.keys()}!"
-                )
-
-            # Propagate
             state.update(state_upd)
-            state.extend(state_ext)
 
-        # Update the IDs of the new detections (that hadn't been matched)
-        ids = torch.full(
+            if extend_num > 0:
+                state_ext: torch.Tensor
+
+                # Switch per special state key.
+                if id == KEY_ACTIVE:
+                    state_ext = torch.ones(
+                        (extend_num,),
+                        dtype=torch.bool,
+                        device=self.frame.device,
+                        requires_grad=False,
+                    )
+                elif id in (KEY_FRAME, KEY_START):
+                    state_ext = torch.full(
+                        (extend_num,),
+                        fill_value=frame,
+                        dtype=torch.int,
+                        device=self.frame.device,
+                    )
+                elif id == KEY_ID:
+                    state_ext = extend_ids
+                elif id in T.cast(T.Iterable[int], new.keys()):
+                    state_ext = new.get(id)
+                else:
+                    raise ValueError(
+                        f"State '{id}' does not match a field in {new.keys()}!"
+                    )
+                state.extend(state_ext)
+
+            print(f"State {id} after: {state.memory}")
+            print(f"State {id} observed: {state.observe()}")
+
+        # Create the return value: a list of IDs to assign to detections in the next
+        # frame.
+        result_ids = torch.full(
             (total_num,),
             -1,
             dtype=torch.long,
             device=self.frame.device,
             requires_grad=False,
         )
-        if active_num > 0:
-            ids[obs_active.get(KEY_INDEX)] = obs_active.get(KEY_ID)
-        if extend_num > 0:
-            ids[new.get(KEY_INDEX)] = extend_ids
-        if (ids < 0).any():
-            raise ValueError(f"IDs are not assigned correctly: {ids}!")
+        active_indices = obs.get_at(KEY_INDEX, active_mask)
+        result_ids[active_indices] = obs.get_at(KEY_ID, active_mask)
+        # if active_num > 0:
+        #    ids[obs_active.get(KEY_INDEX)] = obs_active.get(KEY_ID)
+
+        extend_indices = new.get(KEY_INDEX)
+        result_ids[extend_indices] = extend_ids
+
+        # if extend_num > 0:
+        #    ids[new.get(KEY_INDEX)] = extend_ids
+        if (result_ids < 0).any():
+            msg = f"IDs are not assigned correctly, no negative values should have been propagated! Got: {result_ids}"
+            raise ValueError(msg)
 
         # Update the frame and count
         self.frame.fill_(frame)
         self.count += 1
 
-        return ids
+        return result_ids
 
     @torch.jit.export
     def read(self, frame: int) -> tuple[TensorDictBase, TensorDictBase]:
@@ -169,8 +202,9 @@ class TrackletMemory(torch.nn.Module):
             A ``TensorDict`` object will all observed states.
         """
 
-        if frame >= self.frame:
+        if self.frame >= frame:
             if self.auto_reset:
+                # Reset because the current frame is larger than the stored frame.
                 self.reset()
             else:
                 raise ValueError(
@@ -212,3 +246,11 @@ class TrackletMemory(torch.nn.Module):
 
         for state in self.states.values():
             state.reset()  # type: ignore
+
+
+def _safe_masked_set_at(
+    obs: TensorDictBase, key: str, value: torch.Tensor, mask: torch.Tensor
+) -> None:
+    if not mask.any():
+        return
+    obs.set_at_(key, value, mask)

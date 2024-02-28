@@ -13,6 +13,7 @@ from abc import abstractmethod
 import torch
 import torch.nn as nn
 from tensordict import TensorDictBase
+from torchvision.ops import box_iou
 
 __all__ = []
 
