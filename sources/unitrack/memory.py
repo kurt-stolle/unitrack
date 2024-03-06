@@ -45,7 +45,7 @@ class TrackletMemory(torch.nn.Module):
     def __init__(
         self,
         states: Mapping[str, State],
-        max_id: int = 1000,
+        max_id: int = 2**15,
         auto_reset: bool = True,
         fps: int = 15,
     ):
