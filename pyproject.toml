@@ -27,6 +27,7 @@ dependencies = [
     "torch >= 2.0.0",
     "scikit-learn >= 1.2.2",
     "tensordict >= 0.1.2",
+    "unipercept",
 ]
 
 dynamic = ["version"]

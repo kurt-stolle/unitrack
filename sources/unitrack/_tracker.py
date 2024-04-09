@@ -7,7 +7,8 @@ import torch.nn as nn
 from tensordict import TensorDict, TensorDictBase
 from tensordict.nn import TensorDictModule, TensorDictModuleBase, TensorDictSequential
 
-from .constants import DEBUG, KEY_ACTIVE, KEY_FRAME, KEY_ID, KEY_INDEX, KEY_START
+from .consts import KEY_ACTIVE, KEY_FRAME, KEY_ID, KEY_INDEX, KEY_START
+from .debug import check_debug_enabled
 from .stages import Stage
 
 
@@ -85,7 +86,7 @@ class MultiStageTracker(nn.Module):
 
         obs_unmatched_mask = obs.get(KEY_INDEX) < 0
 
-        if DEBUG:
+        if check_debug_enabled():
             print(
                 f"TRACKER COMPLETE: remaining {obs_unmatched_mask.int().sum().item()}/{len(obs)} unmatched observations"
             )

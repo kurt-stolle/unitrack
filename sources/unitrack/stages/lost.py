@@ -5,7 +5,7 @@ from typing import Tuple
 import torch
 from tensordict import TensorDictBase
 
-from ..constants import DEBUG, KEY_DELTA, KEY_FRAME
+from ..consts import KEY_DELTA, KEY_FRAME
 from .base_stage import Stage
 
 __all__ = ["Lost"]

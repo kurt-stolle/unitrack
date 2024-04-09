@@ -8,7 +8,8 @@ import torch.nn as nn
 import typing_extensions as TX
 from tensordict import TensorDictBase
 
-from ..constants import DEBUG, KEY_INDEX
+from ..consts import KEY_INDEX
+from ..debug import check_debug_enabled
 from .base_stage import Stage
 
 

@@ -7,7 +7,7 @@ import torch
 from lap import lapjv
 from scipy.optimize import linear_sum_assignment
 
-from ..constants import DEBUG
+from ..debug import check_debug_enabled
 from .base_assignment import Assignment
 
 __all__ = ["Jonker", "jonker_volgenant_assignment"]
@@ -82,7 +82,7 @@ def jonker_volgenant_assignment(
     unmatched_b = torch.from_numpy(np.where(y < 0)[0]).clone().long()
     matches = torch.from_numpy(np.asarray(matches)).clone().long()
 
-    if DEBUG:
+    if check_debug_enabled():
         print(f"Jonker-Volgenant Assignment completed with total cost: {cost}")
         for i, j in matches:
             print(f"- match: C {i} -> D {j} (cost: {cost_matrix[i,j]})")

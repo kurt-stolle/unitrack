@@ -98,10 +98,10 @@ class CategoryGate(FieldCost):
     def compute(self, cs_cats: torch.Tensor, ds_cats: torch.Tensor) -> torch.Tensor:
         gate_matrix = ds_cats[None, :] - cs_cats[:, None]
 
-        return gate_matrix == 0
+        return torch.where(gate_matrix == 0, 0.0, torch.inf)
 
 
-DEFAULT_EPS: T.Final = 1e-8
+DEFAULT_EPS: T.Final = torch.finfo(torch.float32).eps
 
 
 class MaskIoU(FieldCost):
@@ -283,6 +283,8 @@ def _reduce_stack(costs: torch.Tensor, method: Reduction) -> torch.Tensor:
         return costs.min(dim=0).values
     if method == Reduction.MAX:
         return costs.max(dim=0).values
+    if method == Reduction.PRODUCT:
+        return costs.prod(dim=0)
     raise NotImplementedError(f"Reduction method '{method}' not implemented!")
 
 
@@ -354,7 +356,7 @@ class Cosine(Distance):
         super().__init__(*args, **kwargs)
         self.eps = eps
 
-    def compute(self, cs: TensorDictBase, ds: TensorDictBase):
+    def forward(self, cs: TensorDictBase, ds: TensorDictBase):
         ts_field, ds_field = self.get_field(cs, ds)
         return _cosine_distance(ts_field, ds_field, self.eps)
 
@@ -368,7 +370,7 @@ class Softmax(Distance):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def compute(self, cs: TensorDictBase, ds: TensorDictBase):
+    def forward(self, cs: TensorDictBase, ds: TensorDictBase):
         ts_field, ds_field = self.get_field(cs, ds)
         return _softmax_distance(ts_field, ds_field)
 
@@ -389,7 +391,7 @@ def _softmax_distance(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     mul = torch.mm(a, b.T)
     a2b = mul.softmax(dim=0)
     b2a = mul.softmax(dim=1)
-    return (a2b + b2a) / 2.0
+    return 1.0 - (a2b + b2a) / 2.0
 
 
 def _radial_basis_distance(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:

@@ -11,15 +11,8 @@ import torch
 from tensordict import TensorDict, TensorDictBase
 from tensordict.nn import TensorDictSequential
 
-from .constants import (
-    DEBUG,
-    KEY_ACTIVE,
-    KEY_DELTA,
-    KEY_FRAME,
-    KEY_ID,
-    KEY_INDEX,
-    KEY_START,
-)
+from .consts import KEY_ACTIVE, KEY_DELTA, KEY_FRAME, KEY_ID, KEY_INDEX, KEY_START
+from .debug import check_debug_enabled
 from .states import State
 from .states import Value as ValueState
 
@@ -119,7 +112,7 @@ class TrackletMemory(torch.nn.Module):
         if len(current_ids) > 0:
             extend_ids += current_ids.max()
 
-        if DEBUG:
+        if check_debug_enabled():
             print(f"Current IDs: {current_ids}")
             print(f"Extend IDs: {extend_ids}")
 
@@ -181,7 +174,7 @@ class TrackletMemory(torch.nn.Module):
             KEY_ID, active_mask
         ).clone()
 
-        if DEBUG:
+        if check_debug_enabled():
             print("Propagated IDs: ")
             for _idx, _id in zip(active_indices, active_ids):
                 print(f"   {_id} -> detection {_idx}")
@@ -275,7 +268,7 @@ class TrackletMemory(torch.nn.Module):
         Reset the states of this ``Tracklets`` module.
         """
 
-        if DEBUG:
+        if check_debug_enabled():
             print("Resetting memory")
         self.frame.fill_(-1)
         self.count.fill_(0)

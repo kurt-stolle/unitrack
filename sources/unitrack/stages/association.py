@@ -5,8 +5,9 @@ import typing as T
 from tensordict import TensorDictBase
 
 from ..assignment import Assignment
-from ..constants import DEBUG, KEY_FRAME, KEY_ID, KEY_INDEX
+from ..consts import KEY_FRAME, KEY_ID, KEY_INDEX
 from ..costs import Cost
+from ..debug import check_debug_enabled
 from .base_stage import Stage
 
 __all__ = ["Association"]
@@ -37,7 +38,7 @@ class Association(Stage):
     def forward(
         self, ctx: TensorDictBase, cs: TensorDictBase, ds: TensorDictBase
     ) -> T.Tuple[TensorDictBase, TensorDictBase]:
-        if DEBUG:
+        if check_debug_enabled():
             print(
                 f"Associating {cs.batch_size[0]} candidates / "
                 f"{ds.batch_size[0]} detections"

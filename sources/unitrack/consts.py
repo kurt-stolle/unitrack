@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import Final
 
-DEBUG: Final = False
-
 KEY_INDEX: Final = "_index"
 KEY_FRAME: Final = "_frame"
 KEY_ID: Final = "_id"

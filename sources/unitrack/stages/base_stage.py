@@ -7,7 +7,8 @@ from typing import Iterable, List, Tuple
 import torch
 from tensordict import TensorDictBase
 
-from ..constants import DEBUG, KEY_ID, KEY_INDEX
+from ..consts import KEY_ID, KEY_INDEX
+from ..debug import check_debug_enabled
 
 __all__ = ["Stage"]
 
@@ -51,7 +52,7 @@ class Stage(torch.nn.Module):
         ds
             Detections
         """
-        if DEBUG:
+        if check_debug_enabled():
             print(
                 f" - matched {cs.batch_size[0]} candidates to "
                 f"{ds.batch_size[0]} detections"
