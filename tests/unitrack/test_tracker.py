@@ -1,3 +1,7 @@
+r"""
+Tests for ``unitrack.tracker``.
+"""
+
 from __future__ import annotations
 
 from typing import cast

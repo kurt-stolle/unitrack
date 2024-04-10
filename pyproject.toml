@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=68.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -19,12 +19,12 @@ authors = [{ name = "Kurt Stolle", email = "k.h.w.stolle@gmail.com" }]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
 dependencies = [
-    "torch >= 2.0.0",
+    "torch >= 2.2.0",
     "scikit-learn >= 1.2.2",
     "tensordict >= 0.1.2",
     "unipercept",
@@ -32,11 +32,9 @@ dependencies = [
 
 dynamic = ["version"]
 
-[tool.setuptools.package_data]
-unitrack = ["py.typed"]
-
 [tool.setuptools.dynamic]
 version = { attr = "unitrack.__version__" }
+
 [tool.setuptools.packages.find]
 where = ["sources"]
 include = ["uni*"]
@@ -44,13 +42,11 @@ exclude = ["tests"]
 namespaces = false
 
 [project.optional-dependencies]
-
-tests = [
-    "hypothesis",
+qa = [
+    "black>=24.3.0",
     "bandit[toml]",
-    "black>=23.10.0",
     "check-manifest",
-    "flake8",
+    "flake8 >= 7.0.0",
     "flake8-bugbear",
     "flake8-docstrings",
     "flake8-formatter_junit_xml",
@@ -70,22 +66,13 @@ tests = [
     "flake8-pyproject",
     "pre-commit",
     "pygrep",
-    "isort",
-    "pandas-vet",
+    "isort >= 5.13.2",
     "refurb",
-    "pylint",
-    "pylint_junit",
-    "pytest",
-    "pytest-sugar",
-    "pytest-xdist",
-    "pytest-benchmark",
-    "pytest-cov",
-    "pytest-mock",
-    "pytest-runner",
-    "pytest-github-actions-annotate-failures",
+    "pylint >= 3.0.3",
+    "pylint_junit", 
     "shellcheck-py",
     "pylint",
-    "mypy",
+    "mypy >= 1.9.0",
     "autoflake",
     "pydocstyle",
     "pyre-check",
@@ -94,13 +81,24 @@ tests = [
     "pyflakes",
     "mccabe",
 ]
+tests = [
+    "hypothesis >= 6.100.1",
+    "pytest >= 8.1.1",
+    "pytest-sugar",
+    "pytest-xdist",
+    "pytest-benchmark",
+    "pytest-cov",
+    "pytest-mock",
+    "pytest-runner",
+    "pytest-github-actions-annotate-failures",
+]
 notebooks = [
     "jupyterlab",
     "ipywidgets",
     "ipykernel",
     "ipython-autotime",
-    "matplotlib",
-    "seaborn",
+    "matplotlib >= 3.8.4",
+    "seaborn >= 0.13.2",
 ]
 docs = ["sphinx", "sphinx-rtd-theme", "numpydoc"]
 
@@ -168,7 +166,6 @@ extend-select = [
     "YTT",  # flake8-2020
     "EXE",  # flake8-executable
     "NPY",  # NumPy specific rules
-    "PD",   # pandas-vet
     "FURB", # refurb
     "PYI",  # flake8-pyi
 ]
@@ -220,10 +217,8 @@ executionEnvironments = [{ root = "sources" }]
 [tool.autoflake]
 check = false
 exclude = [
-    "configs/**/*",
     "__init__.py",
     "tests/**/*",
-    "configs/**/*",
     "docs/**.*",
 ]
 imports = [
@@ -233,8 +228,6 @@ imports = [
     "torchvision",
     "tensordict",
     "unitrack",
-    "unicore",
-    "evaluators",
     "tensordict",
     "einops",
     "timm",
@@ -396,4 +389,3 @@ disallow_untyped_defs = false
 warn_unused_ignores = true
 check_untyped_defs = false
 no_implicit_optional = true
-inclulde = ["sources"]

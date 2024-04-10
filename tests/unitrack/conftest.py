@@ -1,3 +1,9 @@
+r"""
+Common set-up for all tests.
+
+Defines fixtures and ensures testing data is present.
+"""
+
 import pytest
 import typing as T
 import os

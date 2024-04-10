@@ -1,5 +1,5 @@
-"""
-Test the stateful tracker module
+r"""
+Tests for ``unitrack.stateful``.
 """
 
 import torch

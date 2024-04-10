@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import enum as E
 import itertools
+from re import I
 import typing as T
 from abc import abstractmethod
 
@@ -14,8 +15,13 @@ import torch
 import torch.nn as nn
 from tensordict import TensorDictBase
 from torchvision.ops import box_iou
+import typing_extensions as TX
 
 __all__ = []
+
+# ---------------- #
+# Abstract classes #
+# ---------------- #
 
 
 class Cost(torch.nn.Module):
@@ -32,6 +38,7 @@ class Cost(torch.nn.Module):
         self.required_fields = list(set(required_fields))
 
     @abstractmethod
+    @TX.override
     def forward(self, cs: TensorDictBase, ds: TensorDictBase) -> torch.Tensor:
         """
         Computes the assignment costs between previous tracklets and current
@@ -53,15 +60,36 @@ class Cost(torch.nn.Module):
 
 
 class FieldCost(Cost):
-    field: torch.jit.Final[str]
+    field: T.Final[str]
+    select: T.Final[T.List[int]]
 
     def __init__(self, field: str):
         super().__init__(required_fields=[field])
 
         self.field = field
+        if select is None:
+            select = []
+        self.select = select  # type: ignore
 
-    def forward(self, cs: TensorDictBase, ds: TensorDictBase) -> torch.Tensor:
-        return self.compute(cs.get(self.field), ds.get(self.field))
+    def get_field(
+        self, cs: TensorDictBase, ds: TensorDictBase
+    ) -> T.Tuple[torch.Tensor, torch.Tensor]:
+        ts_field = cs.get(self.field)
+        ds_field = ds.get(self.field)
+
+        if len(self.select) > 0:
+            assert ts_field.shape[1] >= max(self.select)
+            assert ds_field.shape[1] >= max(self.select)
+
+            ts_field = ts_field[:, self.select]
+            ds_field = ds_field[:, self.select]
+
+        return ts_field, ds_field
+
+    @TX.override
+    def forward(self, cs: TensorDictBase, ds: TensorDictBase):
+        ts_field, ds_field = self.get_field(cs, ds)
+        return self.compute(ts_field, ds_field)
 
     @abstractmethod
     def compute(self, cs: torch.Tensor, ds: torch.Tensor) -> torch.Tensor:
@@ -82,7 +110,27 @@ class FieldCost(Cost):
         -------
             Cost matrix (N x M).
         """
-        raise NotImplementedError
+        ...
+
+
+# --------------- #
+# Primitive costs #
+# --------------- #
+
+
+class SumCost(FieldCost):
+    """
+    Returns the pairwise sum of two fields.
+    """
+
+    @TX.override
+    def compute(self, x: torch.Tensor, y: torch.Tensor):
+        return x[None, :] - y[:, None]
+
+
+# ------------------- #
+# Category gate macro #
+# ------------------- #
 
 
 class CategoryGate(FieldCost):
@@ -95,6 +143,7 @@ class CategoryGate(FieldCost):
     def __init__(self, field="categories"):
         super().__init__(field=field)
 
+    @TX.override
     def compute(self, cs_cats: torch.Tensor, ds_cats: torch.Tensor) -> torch.Tensor:
         gate_matrix = ds_cats[None, :] - cs_cats[:, None]
 
@@ -102,6 +151,10 @@ class CategoryGate(FieldCost):
 
 
 DEFAULT_EPS: T.Final = torch.finfo(torch.float32).eps
+
+# ------------- #
+# Overlap costs #
+# ------------- #
 
 
 class MaskIoU(FieldCost):
@@ -115,11 +168,13 @@ class MaskIoU(FieldCost):
         super().__init__(**kwargs)
         self.eps = eps
 
+    @TX.override
     def compute(self, cs: torch.Tensor, ds: torch.Tensor) -> torch.Tensor:
         return _naive_mask_iou(cs, ds, self.eps)
 
 
 class BoxIoU(MaskIoU):
+    @TX.override
     def compute(self, cs: torch.Tensor, ds: torch.Tensor) -> torch.Tensor:
         cs_field = _pad_degenerate_boxes(cs)
         ds_field = _pad_degenerate_boxes(ds)
@@ -207,6 +262,11 @@ def _complete_box_iou(boxes1: torch.Tensor, boxes2: torch.Tensor, eps) -> torch.
     return diou - alpha * v
 
 
+# ------------------- #
+# Combinational costs #
+# ------------------- #
+
+
 class Weighted(Cost):
     """
     A weighted cost module.
@@ -265,6 +325,7 @@ class Reduce(Cost):
             torch.tensor(weights, dtype=torch.float32).unsqueeze_(-1).unsqueeze_(-1),
         )
 
+    @TX.override
     def forward(self, cs: TensorDictBase, ds: TensorDictBase) -> torch.Tensor:
         costs = torch.stack([cost(cs, ds) for cost in self.costs])
         costs = costs * self.weights
@@ -273,7 +334,6 @@ class Reduce(Cost):
         return costs
 
 
-@torch.jit.script_if_tracing
 def _reduce_stack(costs: torch.Tensor, method: Reduction) -> torch.Tensor:
     if method == Reduction.SUM:
         return costs.sum(dim=0)
@@ -288,65 +348,28 @@ def _reduce_stack(costs: torch.Tensor, method: Reduction) -> torch.Tensor:
     raise NotImplementedError(f"Reduction method '{method}' not implemented!")
 
 
-class Distance(Cost):
+# -------------------------- #
+# Various distance functions #
+# -------------------------- #
+
+
+class CDist(FieldCost):
     """
-    Cost function that wraps a distance module.
+    Computes a distance between two fields using ``torch.cdist``.
     """
 
-    select: torch.jit.Final[T.List[int]]
-    p: torch.jit.Final[float]
-    field: torch.jit.Final[str]
+    p: T.Final[float]
 
-    def __init__(
-        self,
-        field: str,
-        select: T.Optional[T.List[int]] = None,
-        p_norm: float = 2.0,
-    ):
-        """
-        Parameters
-        ----------
-        critereon
-            Module that computes distance between two fields
-        field_name
-            Name if the field to read tensors from that are passed to the
-            ``torch.cdist`` function.
-        select
-            List of indices to select from the field.
-        p_norm
-            Value of p-norm.
-        """
-        super().__init__(required_fields=(field,))
-
-        self.field = field
-
-        if select is None:
-            select = []
-
-        self.select = select  # type: ignore
+    def __init__(self, p_norm: float = 2.0, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.p = p_norm
 
-    def get_field(
-        self, cs: TensorDictBase, ds: TensorDictBase
-    ) -> T.Tuple[torch.Tensor, torch.Tensor]:
-        ts_field = cs.get(self.field)
-        ds_field = ds.get(self.field)
-
-        if len(self.select) > 0:
-            assert ts_field.shape[1] >= max(self.select)
-            assert ds_field.shape[1] >= max(self.select)
-
-            ts_field = ts_field[:, self.select]
-            ds_field = ds_field[:, self.select]
-
-        return ts_field, ds_field
-
-    def forward(self, cs: TensorDictBase, ds: TensorDictBase):
-        ts_field, ds_field = self.get_field(cs, ds)
-        return torch.cdist(ts_field, ds_field, self.p, "donot_use_mm_for_euclid_dist")
+    @TX.override
+    def compute(self, cs: torch.Tensor, ds: torch.Tensor) -> torch.Tensor:
+        return torch.cdist(cs, ds, self.p, "donot_use_mm_for_euclid_dist")
 
 
-class Cosine(Distance):
+class Cosine(FieldCost):
     r"""
     Computes the distance between two fields based on a similarity measure with
     range $[0,1]$ by computing $1 - \mathrm{CosineSimilarity}(x,y)$.
@@ -356,12 +379,20 @@ class Cosine(Distance):
         super().__init__(*args, **kwargs)
         self.eps = eps
 
+    @TX.override
     def forward(self, cs: TensorDictBase, ds: TensorDictBase):
         ts_field, ds_field = self.get_field(cs, ds)
-        return _cosine_distance(ts_field, ds_field, self.eps)
+        return cosine_distance(ts_field, ds_field, self.eps)
 
 
-class Softmax(Distance):
+def cosine_distance(a: torch.Tensor, b: torch.Tensor, eps) -> torch.Tensor:
+    a_norm = _stable_norm(a, eps)
+    b_norm = _stable_norm(b, eps)
+
+    return 1.0 - a_norm @ b_norm.mT
+
+
+class Softmax(FieldCost):
     r"""
     Computes the distance between two fields based on a similarity measure with
     range $[0,1]$ by computing $1 - \mathrm{ReciprocalSoftmax}(x,y)$.
@@ -370,29 +401,38 @@ class Softmax(Distance):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+    @TX.override
     def forward(self, cs: TensorDictBase, ds: TensorDictBase):
         ts_field, ds_field = self.get_field(cs, ds)
-        return _softmax_distance(ts_field, ds_field)
+        return softmax_distance(ts_field, ds_field)
 
 
-def _cosine_distance(a: torch.Tensor, b: torch.Tensor, eps) -> torch.Tensor:
-    a_norm = _stable_norm(a, eps)
-    b_norm = _stable_norm(b, eps)
-
-    return 1.0 - a_norm @ b_norm.mT
-
-
-def _stable_norm(t: torch.Tensor, eps):
-    norm = torch.linalg.vector_norm(t, dim=-1, keepdim=True)
-    return t / norm.clamp_min(eps)
-
-
-def _softmax_distance(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+def softmax_distance(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     mul = torch.mm(a, b.T)
     a2b = mul.softmax(dim=0)
     b2a = mul.softmax(dim=1)
     return 1.0 - (a2b + b2a) / 2.0
 
 
-def _radial_basis_distance(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+class RadialBasis(FieldCost):
+    r"""
+    Computes the radial basis function (RBF) between two fields.
+    """
+
+    @TX.override
+    def compute(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        return radial_basis_distance(x, y)
+
+
+def radial_basis_distance(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     return torch.exp(-torch.cdist(a, b, p=2))
+
+
+# --------- #
+# Utilities #
+# --------- #
+
+
+def _stable_norm(t: torch.Tensor, eps):
+    norm = torch.linalg.vector_norm(t, dim=-1, keepdim=True)
+    return t / norm.clamp_min(eps)

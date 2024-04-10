@@ -1,3 +1,8 @@
+r"""
+Tests for ``unitrack.assignment``.
+"""
+
+
 from __future__ import annotations
 
 import pytest
