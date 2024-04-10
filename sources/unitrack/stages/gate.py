@@ -9,7 +9,6 @@ import typing_extensions as TX
 from tensordict import TensorDictBase
 
 from ..consts import KEY_INDEX
-from ..debug import check_debug_enabled
 from .base_stage import Stage
 
 
@@ -38,10 +37,10 @@ class Gate(Stage):
         self.gate = gate
         self.then = nn.ModuleList(then)
 
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}(gate={self.gate}, then={self.then})"
-
-    __str__ = __repr__
+    @TX.override
+    def extra_repr(self) -> str:
+        repr = super().extra_repr()
+        return repr + f"gate={self.gate}\nthen={self.then}"
 
     @TX.override
     def forward(

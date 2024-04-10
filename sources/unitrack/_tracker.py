@@ -57,7 +57,13 @@ class MultiStageTracker(nn.Module):
             Updated observations and field-values of new tracklets.
         """
 
-        assert inp.device is not None
+        if inp.device is None:
+            msg = (
+                "Inputs TensorDict device is None. Check that the tensors are on the "
+                "same device and that the container TensorDict instance has the device "
+                "property set."
+            )
+            raise ValueError(msg)
 
         # Create a dict of new tracklet candidates by passing the input state to
         # each field
@@ -68,6 +74,7 @@ class MultiStageTracker(nn.Module):
             device=inp.device,
             _run_checks=False,
         )
+
         obs = obs.to(device=inp.device)
 
         for field in self.fields:
@@ -90,7 +97,8 @@ class MultiStageTracker(nn.Module):
             print(
                 f"TRACKER COMPLETE: remaining {obs_unmatched_mask.int().sum().item()}/{len(obs)} unmatched observations"
             )
-        obs.set_at_(KEY_ACTIVE, False, obs_unmatched_mask)
-        obs.set_at_(KEY_ACTIVE, True, ~obs_unmatched_mask)
+        obs[KEY_ACTIVE] = torch.where(obs_unmatched_mask, False, True)
+        #obs.set_at_(KEY_ACTIVE, False, obs_unmatched_mask)
+        #obs.set_at_(KEY_ACTIVE, True, ~obs_unmatched_mask)
 
         return obs, new

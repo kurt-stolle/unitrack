@@ -1,6 +1,11 @@
+r"""
+Implements the `Lost` stage, which filters out candidates that have been lost for more
+than a configurable maximum amount of time.
+"""
+
 from __future__ import annotations
 
-from typing import Tuple
+import typing as T
 
 import torch
 from tensordict import TensorDictBase
@@ -24,7 +29,7 @@ class Lost(Stage):
     *after* all stages have been ran.
     """
 
-    max_lost: torch.jit.Final[int]
+    max_lost: T.Final[int]
 
     def __init__(self, max_lost: int):
         """

@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import typing as T
-
+import typing_extensions as TX
 from tensordict import TensorDictBase
 
-from ..assignment import Assignment
-from ..consts import KEY_FRAME, KEY_ID, KEY_INDEX
-from ..costs import Cost
-from ..debug import check_debug_enabled
+if T.TYPE_CHECKING:
+    from unitrack.assignment import Assignment
+    from unitrack.costs import Cost
+    
+from unitrack.debug import check_debug_enabled
 from .base_stage import Stage
 
 __all__ = ["Association"]
@@ -35,6 +36,7 @@ class Association(Stage):
         for cost in costs:
             self.required_fields += cost.required_fields
 
+    @TX.override
     def forward(
         self, ctx: TensorDictBase, cs: TensorDictBase, ds: TensorDictBase
     ) -> T.Tuple[TensorDictBase, TensorDictBase]:

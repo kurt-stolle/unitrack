@@ -3,12 +3,12 @@ from __future__ import annotations
 import typing as T
 from abc import abstractmethod
 from typing import Iterable, List, Tuple
-
+import typing_extensions as TX
 import torch
 from tensordict import TensorDictBase
 
-from ..consts import KEY_ID, KEY_INDEX
-from ..debug import check_debug_enabled
+from unitrack.consts import KEY_INDEX
+from unitrack.debug import check_debug_enabled
 
 __all__ = ["Stage"]
 
@@ -28,11 +28,13 @@ class Stage(torch.nn.Module):
 
         self.required_fields = list(required_fields)
 
-    def __repr__(self) -> str:
+    @TX.override
+    def extra_repr(self) -> str:
         req = ", ".join(self.required_fields)
-        return f"{type(self).__name__}(fields=[{req}])"
+        return f"fields=[{req}]"
 
     @abstractmethod
+    @TX.override
     def forward(
         self,
         ctx: TensorDictBase,
