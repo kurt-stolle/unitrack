@@ -20,7 +20,7 @@ class SampleData(T.NamedTuple):
 
 
 @pytest.fixture()
-def sample_data(assets_path) -> list[SampleData]:
+def sample_data(assets_path: Path) -> list[SampleData]:
     depths_path: Path = assets_path / "depths"
     segmentations_path: Path = assets_path / "segmentations"
     images_path: Path = assets_path / "images"
