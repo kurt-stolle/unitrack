@@ -1,10 +1,19 @@
+r"""
+Implements the Auction algorithm for solving a linear assignment problem.
+
+The Auction algorithm is an iterative algorithm that solves the linear assignment
+problem by simulating an auction process.
+"""
+
 from __future__ import annotations
 
-from typing import Tuple
+import typing as T
 
 import torch
+import torch.fx
+import typing_extensions as TX
 
-from .base_assignment import Assignment
+from ._base import Assignment
 
 __all__ = ["Auction", "auction_assignment"]
 
@@ -14,32 +23,36 @@ class Auction(Assignment):
     Solves the linear assignment over a cost matrix using an auction algorithm.
     """
 
-    bid_size: torch.jit.Final[float]
+    bid_size: T.Final[float]
 
     def __init__(self, bid_size=0.05, *args, **kwargs):
         """
         Parameters
         ----------
         bid_size, optional
-            Step size of auction bids, by default None
+            Step size of auction bids, which should be tuned according to the expected
+            domain of the cost matrix.
         """
         super().__init__(*args, **kwargs)
 
         self.bid_size = bid_size
 
+    @TX.override
     def _assign(
         self, cost_matrix: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> T.Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         return auction_assignment(cost_matrix, self.bid_size)
 
 
-@torch.jit.script_if_tracing
 @torch.no_grad()
 def auction_assignment(
     cost_matrix: torch.Tensor, bid_size: float
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+) -> T.Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    cost_matrix = cost_matrix * -1  # Convert cost matrix to profit matrix
+    cost_matrix = cost_matrix - cost_matrix.min()  # Normalize cost matrix
+
     # Compute epsilon based on bid_size and the smaller dimension of the cost matrix
-    eps = bid_size / min(cost_matrix.shape)
+    eps = min(bid_size / min(cost_matrix.shape), 1e-3)
 
     device = cost_matrix.device
 
@@ -109,3 +122,6 @@ def auction_assignment(
     )
 
     return matches, unmatched_rows, unmatched_cols
+
+
+torch.fx.wrap("auction_assignment")

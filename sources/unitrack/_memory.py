@@ -9,11 +9,9 @@ import typing as T
 
 import torch
 import torch.nn as nn
-
-from torch import Tensor
-from tensordict import TensorDict, TensorDictBase
-
 import typing_extensions as TX
+from tensordict import TensorDict, TensorDictBase
+from torch import Tensor
 
 from .consts import KEY_ACTIVE, KEY_DELTA, KEY_FRAME, KEY_ID, KEY_INDEX, KEY_START
 from .debug import check_debug_enabled
@@ -184,8 +182,10 @@ class TrackletMemory(nn.Module):
             raise ValueError(msg)
 
         if check_debug_enabled():
-            print(f"Current IDs: {obs_ids[obs_mask]}")
-            print(f"Extend IDs: {new_ids}")
+            print(
+                f"Current IDs: {obs_ids[obs_mask].tolist()} -> detections {idx_obs_valid.tolist()}"
+            )
+            print(f"Extend IDs: {new_ids.tolist()} -> detections {idx_new.tolist()}")
 
         idx_all = torch.cat((idx_obs_valid, idx_new), dim=0)
         idx_all_amt = idx_all.numel()
@@ -197,7 +197,8 @@ class TrackletMemory(nn.Module):
             raise ValueError(msg)
         if idx_all.min() != 0:
             msg = (
-                "Indices must start at 0! Got: " f"{idx_all.min()} for {idx_all.tolist()}"
+                "Indices must start at 0! Got: "
+                f"{idx_all.min()} for {idx_all.tolist()}"
             )
             raise ValueError(msg)
         if idx_all.max() != idx_all_amt - 1:

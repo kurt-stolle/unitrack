@@ -1,12 +1,15 @@
 r"""
 Tests for ``unitrack.memory``.
 """
+from __future__ import annotations
+
 import typing as T
-import unitrack as ut
-import torch
+
 import pytest
+import torch
 from tensordict import TensorDict
 
+import unitrack as ut
 
 KEY_STATE_FLOAT: T.Final = "float_state"
 KEY_STATE_BOOL: T.Final = "bool_state"

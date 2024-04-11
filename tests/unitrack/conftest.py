@@ -4,10 +4,13 @@ Common set-up for all tests.
 Defines fixtures and ensures testing data is present.
 """
 
-import pytest
-import typing as T
+from __future__ import annotations
+
 import os
+import typing as T
 from pathlib import Path
+
+import pytest
 
 
 @pytest.fixture()

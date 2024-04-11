@@ -7,15 +7,15 @@ from __future__ import annotations
 
 import enum as E
 import itertools
-from re import I
 import typing as T
 from abc import abstractmethod
+from re import I
 
 import torch
 import torch.nn as nn
+import typing_extensions as TX
 from tensordict import TensorDictBase
 from torchvision.ops import box_iou
-import typing_extensions as TX
 
 __all__ = []
 
@@ -63,13 +63,15 @@ class FieldCost(Cost):
     field: T.Final[str]
     select: T.Final[T.List[int]]
 
-    def __init__(self, field: str):
+    def __init__(self, field: str, select: T.Iterable[int] | None = None):
         super().__init__(required_fields=[field])
 
         self.field = field
         if select is None:
             select = []
-        self.select = select  # type: ignore
+        else:
+            select = list(select)
+        self.select = select
 
     def get_field(
         self, cs: TensorDictBase, ds: TensorDictBase
@@ -113,41 +115,40 @@ class FieldCost(Cost):
         ...
 
 
-# --------------- #
-# Primitive costs #
-# --------------- #
-
-
-class SumCost(FieldCost):
-    """
-    Returns the pairwise sum of two fields.
-    """
-
-    @TX.override
-    def compute(self, x: torch.Tensor, y: torch.Tensor):
-        return x[None, :] - y[:, None]
-
-
 # ------------------- #
 # Category gate macro #
 # ------------------- #
 
 
-class CategoryGate(FieldCost):
+class GateCost(FieldCost):
     """
     Returns a matrix where each tracklet/detection pair that have equal
-    categories are set to `True` and  that have different categories are set to
+    field values are set to `True` and  that have different field values are set to
     `False`.
     """
-
-    def __init__(self, field="categories"):
-        super().__init__(field=field)
 
     @TX.override
     def compute(self, cs_cats: torch.Tensor, ds_cats: torch.Tensor) -> torch.Tensor:
         gate_matrix = ds_cats[None, :] - cs_cats[:, None]
 
         return torch.where(gate_matrix == 0, 0.0, torch.inf)
+
+    def wrap(self, cost: Cost) -> Reduce:
+        """
+        Wraps another cost function with a gated cost function, using a sum
+        reduction to merge the two costs.
+
+        Parameters
+        ----------
+        cost: Cost
+            The cost function to wrap.
+
+        Returns
+        -------
+        Reduction
+            The wrapped cost function.
+        """
+        return Reduce([cost, self], Reduction.SUM)
 
 
 DEFAULT_EPS: T.Final = torch.finfo(torch.float32).eps
@@ -164,8 +165,8 @@ class MaskIoU(FieldCost):
 
     eps: torch.jit.Final[float]
 
-    def __init__(self, eps: float = DEFAULT_EPS, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, *args, eps: float = DEFAULT_EPS, **kwargs):
+        super().__init__(*args, **kwargs)
         self.eps = eps
 
     @TX.override
@@ -282,16 +283,16 @@ class Weighted(Cost):
         return self.weight * self.cost(cs, ds)
 
 
-class Reduction(E.Enum):
+class Reduction(E.StrEnum):
     """
     Reduction method for :class:`.Reduce` cost module.
     """
 
-    SUM = "sum"
-    MEAN = "mean"
-    MIN = "min"
-    MAX = "max"
-    PRODUCT = "product"
+    SUM = E.auto()
+    MEAN = E.auto()
+    MIN = E.auto()
+    MAX = E.auto()
+    PRODUCT = E.auto()
 
 
 class Reduce(Cost):
@@ -299,53 +300,45 @@ class Reduce(Cost):
     A cost reduction module.
     """
 
-    weights: torch.Tensor
-    method: torch.jit.Final[Reduction]
+    weights: T.Final[T.List[float]]
+    method: T.Final[method]
 
     def __init__(
         self,
         costs: T.Sequence[Cost],
-        method: Reduction,
+        method: Reduction | str,
         weights: T.Optional[T.Sequence[float]] = None,
     ):
         super().__init__(
             required_fields=itertools.chain(*(c.required_fields for c in costs))
         )
-
-        if isinstance(method, str):
-            method = Reduction(method)
-
-        self.method = method
+        self.method = Reduction(method)
         self.costs = nn.ModuleList(costs)
         if weights is None:
             weights = [1.0] * len(costs)
-
-        self.register_buffer(
-            "weights",
-            torch.tensor(weights, dtype=torch.float32).unsqueeze_(-1).unsqueeze_(-1),
-        )
+        self.weights = list(weights)
 
     @TX.override
     def forward(self, cs: TensorDictBase, ds: TensorDictBase) -> torch.Tensor:
-        costs = torch.stack([cost(cs, ds) for cost in self.costs])
-        costs = costs * self.weights
-        costs = _reduce_stack(costs, self.method)
+        res = torch.stack(
+            [fn(cs, ds) * wt for fn, wt in zip(self.costs, self.weights, strict=True)]
+        )
 
-        return costs
-
-
-def _reduce_stack(costs: torch.Tensor, method: Reduction) -> torch.Tensor:
-    if method == Reduction.SUM:
-        return costs.sum(dim=0)
-    if method == Reduction.MEAN:
-        return costs.mean(dim=0)
-    if method == Reduction.MIN:
-        return costs.min(dim=0).values
-    if method == Reduction.MAX:
-        return costs.max(dim=0).values
-    if method == Reduction.PRODUCT:
-        return costs.prod(dim=0)
-    raise NotImplementedError(f"Reduction method '{method}' not implemented!")
+        match self.method:
+            case Reduction.SUM:
+                return res.sum(dim=0)
+            case Reduction.MEAN:
+                return res.mean(dim=0)
+            case Reduction.MIN:
+                return res.min(dim=0).values
+            case Reduction.MAX:
+                return res.max(dim=0).values
+            case Reduction.PRODUCT:
+                return res.prod(dim=0)
+            case _:
+                pass
+        msg = f"Reduction method '{method}' not implemented!"
+        raise NotImplementedError(msg)
 
 
 # -------------------------- #
@@ -360,7 +353,7 @@ class CDist(FieldCost):
 
     p: T.Final[float]
 
-    def __init__(self, p_norm: float = 2.0, *args, **kwargs):
+    def __init__(self, *args, p_norm: float = 2.0, **kwargs):
         super().__init__(*args, **kwargs)
         self.p = p_norm
 

@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import typing as T
+
 import typing_extensions as TX
 from tensordict import TensorDictBase
 
 if T.TYPE_CHECKING:
     from unitrack.assignment import Assignment
     from unitrack.costs import Cost
-    
+
 from unitrack.debug import check_debug_enabled
+
 from .base_stage import Stage
 
 __all__ = ["Association"]

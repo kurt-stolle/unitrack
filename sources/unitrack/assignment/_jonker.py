@@ -4,48 +4,22 @@ from typing import Tuple
 
 import numpy as np
 import torch
-from lap import lapjv
-from scipy.optimize import linear_sum_assignment
+import torch.fx
 
-from ..debug import check_debug_enabled
-from .base_assignment import Assignment
+from ._base import Assignment
 
 __all__ = ["Jonker", "jonker_volgenant_assignment"]
 
 
 class Jonker(Assignment):
+    """
+    Uses the Jonker-Volgenant algorithm to solve the linear assignment problem.
+    """
+
     def _assign(
         self, cost_matrix: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         return jonker_volgenant_assignment(cost_matrix, self.threshold)
-
-
-def hungarian_assignment(
-    cost_matrix: torch.Tensor,
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """
-    Perform linear assingment.
-    """
-
-    cm = cost_matrix().cpu().numpy()
-    cm = np.ascontiguousarray(cm).astype(np.float64)
-    cm = np.where(np.isfinite(cm), cm, np.inf)
-
-    row_ind, col_ind = linear_sum_assignment(cm)
-
-    matches = torch.from_numpy(np.column_stack((row_ind, col_ind))).clone().long()
-    unmatched_a = (
-        torch.from_numpy(np.setdiff1d(np.arange(cm.shape[0]), row_ind)).clone().long()
-    )
-    unmatched_b = (
-        torch.from_numpy(np.setdiff1d(np.arange(cm.shape[1]), col_ind)).clone().long()
-    )
-
-    return (
-        matches.to(cost_matrix.device),
-        unmatched_a.to(cost_matrix.device),
-        unmatched_b.to(cost_matrix.device),
-    )
 
 
 def jonker_volgenant_assignment(
@@ -58,6 +32,8 @@ def jonker_volgenant_assignment(
 
     TODO: PyTorch implementation
     """
+
+    from lap import lapjv
 
     device = cost_matrix.device
     cost_matrix = cost_matrix.detach().cpu().contiguous()
@@ -82,19 +58,23 @@ def jonker_volgenant_assignment(
     unmatched_b = torch.from_numpy(np.where(y < 0)[0]).clone().long()
     matches = torch.from_numpy(np.asarray(matches)).clone().long()
 
-    if check_debug_enabled():
-        print(f"Jonker-Volgenant Assignment completed with total cost: {cost}")
-        for i, j in matches:
-            print(f"- match: C {i} -> D {j} (cost: {cost_matrix[i,j]})")
+    # NOTE: Too verbose. Needs revision
+    # if check_debug_enabled():
+    #     print(f"Jonker-Volgenant Assignment completed with total cost: {cost}")
+    #     for i, j in matches:
+    #         print(f"- match: C {i} -> D {j} (cost: {cost_matrix[i,j]})")
 
-        unmatch_min_cost = [
-            f"{i} (min. cost: {cost_matrix[i, :].min()})" for i in unmatched_a
-        ]
-        print(f"Unmatched C: {unmatch_min_cost}")
+    #     unmatch_min_cost = [
+    #         f"{i} (min. cost: {cost_matrix[i, :].min()})" for i in unmatched_a
+    #     ]
+    #     print(f"Unmatched C: {unmatch_min_cost}")
 
-        unmatch_min_cost = [
-            f"{i} (min. cost: {cost_matrix[:, i].min()})" for i in unmatched_b
-        ]
-        print(f"Unmatched D: {unmatch_min_cost}")
+    #     unmatch_min_cost = [
+    #         f"{i} (min. cost: {cost_matrix[:, i].min()})" for i in unmatched_b
+    #     ]
+    #     print(f"Unmatched D: {unmatch_min_cost}")
 
     return matches.to(device), unmatched_a.to(device), unmatched_b.to(device)
+
+
+torch.fx.wrap("jonker_volgenant_assignment")

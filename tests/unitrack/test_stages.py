@@ -72,7 +72,7 @@ def test_association_stage(cs_num: int, ds_num: int):
     )
     assert len(ds) == ds_num, ds
 
-    cost = costs.Distance(field="x")
+    cost = costs.CDist(field="x")
     ass_stage = stages.Association(cost, assignment.Jonker(torch.inf))
     ass_num = min(cs_num, ds_num)
 

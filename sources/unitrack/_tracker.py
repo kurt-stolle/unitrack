@@ -98,7 +98,7 @@ class MultiStageTracker(nn.Module):
                 f"TRACKER COMPLETE: remaining {obs_unmatched_mask.int().sum().item()}/{len(obs)} unmatched observations"
             )
         obs[KEY_ACTIVE] = torch.where(obs_unmatched_mask, False, True)
-        #obs.set_at_(KEY_ACTIVE, False, obs_unmatched_mask)
-        #obs.set_at_(KEY_ACTIVE, True, ~obs_unmatched_mask)
+        # obs.set_at_(KEY_ACTIVE, False, obs_unmatched_mask)
+        # obs.set_at_(KEY_ACTIVE, True, ~obs_unmatched_mask)
 
         return obs, new

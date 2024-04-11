@@ -3,8 +3,9 @@ from __future__ import annotations
 import typing as T
 from abc import abstractmethod
 from typing import Iterable, List, Tuple
-import typing_extensions as TX
+
 import torch
+import typing_extensions as TX
 from tensordict import TensorDictBase
 
 from unitrack.consts import KEY_INDEX

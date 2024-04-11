@@ -10,8 +10,9 @@ from __future__ import annotations
 from typing import Tuple
 
 import torch
+import torch.fx
 
-from .base_assignment import Assignment
+from ._base import Assignment
 
 __all__ = ["Greedy", "greedy_assignment"]
 
@@ -27,7 +28,6 @@ class Greedy(Assignment):
         return greedy_assignment(cost_matrix)
 
 
-@torch.jit.script_if_tracing
 @torch.no_grad()
 def greedy_assignment(
     cost_matrix: torch.Tensor,
@@ -53,30 +53,30 @@ def greedy_assignment(
         A tensor containing the indices of unmatched columns.
 
     """
-    N, M = cost_matrix.shape
-    matches = torch.full(
-        (min(N, M), 2), -1, dtype=torch.long, device=cost_matrix.device
-    )
-    unmatched_rows = torch.arange(N, dtype=torch.long, device=cost_matrix.device)
-    unmatched_cols = torch.arange(M, dtype=torch.long, device=cost_matrix.device)
+    with cost_matrix.device:
+        N, M = cost_matrix.shape
+        matches = torch.full((min(N, M), 2), -1, dtype=torch.long)
+        unmatched_rows = torch.arange(N, dtype=torch.long)
+        unmatched_cols = torch.arange(M, dtype=torch.long)
 
-    match_count = 0
-    while True:
-        min_val, idx = torch.min(cost_matrix.flatten(), dim=0)
-        row, col = idx // M, idx % M
+        match_count = 0
+        while True:
+            min_val, idx = torch.min(cost_matrix.flatten(), dim=0)
+            row, col = idx // M, idx % M
 
-        if not torch.isfinite(min_val):
-            break
+            if not torch.isfinite(min_val):
+                break
 
-        matches[match_count] = torch.tensor(
-            [row, col], dtype=torch.long, device=cost_matrix.device
-        )
-        match_count += 1
+            matches[match_count] = torch.tensor([row, col], dtype=torch.long)
+            match_count += 1
 
-        cost_matrix[row, :] = torch.inf
-        cost_matrix[:, col] = torch.inf
+            cost_matrix[row, :] = torch.inf
+            cost_matrix[:, col] = torch.inf
 
-    unmatched_rows = unmatched_rows[torch.isfinite(cost_matrix[:, 0])]
-    unmatched_cols = unmatched_cols[torch.isfinite(cost_matrix[0, :])]
+        unmatched_rows = unmatched_rows[torch.isfinite(cost_matrix[:, 0])]
+        unmatched_cols = unmatched_cols[torch.isfinite(cost_matrix[0, :])]
 
     return matches[:match_count], unmatched_rows, unmatched_cols
+
+
+torch.fx.wrap("greedy_assignment")
