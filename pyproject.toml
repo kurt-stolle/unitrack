@@ -24,9 +24,6 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
 ]
 dependencies = [
-    "torch >= 2.1.2",
-    "scikit-learn >= 1.2.2",
-    "tensordict >= 0.1.2",
     "unipercept",
 ]
 

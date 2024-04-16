@@ -26,7 +26,7 @@ Terminology
 
 from __future__ import annotations
 
-__version__ = "4.7.0"
+__version__ = "4.7.2"
 
 from . import assignment, consts, costs, debug, stages, states
 from ._memory import *
