@@ -10,6 +10,7 @@ import numpy as np
 import torch
 import torch.fx
 import typing_extensions as TX
+import scipy.optimize
 from torch import Tensor
 
 from ._base import Assignment
@@ -46,27 +47,24 @@ def hungarian_assignment(
     Perform linear assingment using the SciPy implementation
     """
 
-    from scipy.optimize import linear_sum_assignment
+    device = cost_matrix.device
 
-    cm = cost_matrix.cpu().numpy()
-    cm = np.ascontiguousarray(cm).astype(np.float64)
+    cm = cost_matrix.cpu().detach().contiguous()
     cm = np.where(np.isfinite(cm), cm, np.inf)
 
-    row_ind, col_ind = linear_sum_assignment(cm)
+    row_ind, col_ind = scipy.optimize.linear_sum_assignment(cm)
+    row_ind = torch.from_numpy(row_ind).to(device=device, dtype=torch.long)
+    col_ind = torch.from_numpy(col_ind).to(device=device, dtype=torch.long)
 
-    matches = torch.from_numpy(np.column_stack((row_ind, col_ind))).clone().long()
-    unmatched_a = (
-        torch.from_numpy(np.setdiff1d(np.arange(cm.shape[0]), row_ind)).clone().long()
-    )
-    unmatched_b = (
-        torch.from_numpy(np.setdiff1d(np.arange(cm.shape[1]), col_ind)).clone().long()
-    )
+    matches = torch.column_stack((row_ind, col_ind)).long()
 
-    return (
-        matches.to(cost_matrix.device),
-        unmatched_a.to(cost_matrix.device),
-        unmatched_b.to(cost_matrix.device),
-    )
+    idx_row = torch.arange(cm.shape[0], device=device)
+    idx_col = torch.arange(cm.shape[1], device=device)
+
+    unmatch_row = idx_row[~torch.isin(idx_row, row_ind)]
+    unmatch_col = idx_col[~torch.isin(idx_col, col_ind)]
+
+    return matches, unmatch_row, unmatch_col
 
 
 torch.fx.wrap("hungarian_assignment")

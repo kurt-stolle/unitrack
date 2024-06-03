@@ -5,17 +5,17 @@ from typing import Tuple
 import numpy as np
 import torch
 import torch.fx
-
+import typing_extensions as TX
 from ._base import Assignment
 
 __all__ = ["Jonker", "jonker_volgenant_assignment"]
-
 
 class Jonker(Assignment):
     """
     Uses the Jonker-Volgenant algorithm to solve the linear assignment problem.
     """
 
+    @TX.override
     def _assign(
         self, cost_matrix: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
