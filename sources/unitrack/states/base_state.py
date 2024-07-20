@@ -1,19 +1,83 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Iterable, TypeAlias, cast
-
+import typing as T
 import torch
-from torch import Tensor
+from unipercept.types import Tensor
 
 __all__ = ["State"]
 
-StateValue: TypeAlias = Tensor | dict[str, Tensor]
+StateValue: T.TypeAlias = Tensor | dict[str, Tensor]
 
 
 class State(torch.nn.Module):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+    def _check_compatible(self, memory: Tensor, *, raises: bool = True) -> bool:
+        """
+        Check if the given memory is compatible with the state.
+
+        Parameters
+        ----------
+        memory
+            The memory to check compatibility with.
+        raises
+            Whether to raise an exception if the memory is incompatible.
+
+        Returns
+        -------
+            Whether the memory is compatible.
+
+        Raises
+        ------
+        ValueError
+            If the memory tensor is incompatible with the state.
+            Only raised if :param:`raises` is True.
+        """
+        if memory.dtype != self.dtype:
+            if raises:
+                msg = f"Memory data type {memory.dtype} is incompatible with state data type {self.dtype}"
+                raise ValueError(msg)
+            return False
+        if memory.shape[1:] != self.shape:
+            if raises:
+                msg = f"Memory shape {memory.shape[1:]} is incompatible with state shape {self.shape}"
+                raise ValueError(msg)
+            return False
+        return True
+
+    @property
+    @abstractmethod
+    def slots(self) -> int:
+        """
+        The number of slots in the state.
+        """
+        raise NotImplementedError
+
+    @slots.setter
+    @abstractmethod
+    def slots(self, slots: int) -> None:
+        """
+        Set the number of slots in the state.
+        """
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def shape(self) -> T.Iterable[int]:
+        """
+        The shape of the state.
+        """
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def dtype(self) -> torch.dtype:
+        """
+        The data type of the state.
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def update(self, update: StateValue) -> None:
@@ -48,7 +112,8 @@ class State(torch.nn.Module):
 
         raise NotImplementedError
 
-    def read(self) -> list[tuple[str, Tensor]]:
+    @abstractmethod
+    def read(self) -> dict[str, Tensor]:
         """
         Read the current state.
 
@@ -56,10 +121,7 @@ class State(torch.nn.Module):
         -------
             State value
         """
-        items = cast(list[tuple[str, Tensor]], list(self._buffers.items()))
-        assert len(items) > 0, "No buffers found!"
-
-        return items
+        raise NotImplementedError
 
     def evolve(self, delta: Tensor):
         """

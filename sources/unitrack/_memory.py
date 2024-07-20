@@ -3,6 +3,7 @@ This module defines the `TrackletMemory` class, which is a container module for 
 
 A tracklet represents a generic collection of states, such as objects in a scene. The states of the tracklets are implemented in subclasses of the `Field` class, which can be used to compute a distance matrix between tracklets at different frames.
 """
+
 from __future__ import annotations
 
 import typing as T
@@ -71,9 +72,9 @@ class TrackletMemory(nn.Module):
         self.auto_reset = auto_reset  # reset the memory when the current frame is larger than the stored frame
 
         self.states = nn.ModuleDict()
-        self.states[KEY_FRAME] = ValueState(torch.int64)
-        self.states[KEY_START] = ValueState(torch.int64)
-        self.states[KEY_ID] = ValueState(torch.int64)
+        self.states[KEY_FRAME] = ValueState(torch.int32)
+        self.states[KEY_START] = ValueState(torch.int32)
+        self.states[KEY_ID] = ValueState(torch.long)
         self.states[KEY_ACTIVE] = ValueState(torch.bool)
         self.states.update(states)
 
@@ -183,6 +184,9 @@ class TrackletMemory(nn.Module):
 
         if check_debug_enabled():
             print(
+                f"Memory write at frame {frame} with {idx_obs_amt} observations and {idx_new_amt} new detections."
+            )
+            print(
                 f"Current IDs: {obs_ids[obs_mask].tolist()} -> detections {idx_obs_valid.tolist()}"
             )
             print(f"Extend IDs: {new_ids.tolist()} -> detections {idx_new.tolist()}")
@@ -195,13 +199,13 @@ class TrackletMemory(nn.Module):
                 f"Got: {idx_all.tolist()}"
             )
             raise ValueError(msg)
-        if idx_all.min() != 0:
+        if idx_all_amt > 0 and idx_all.min() != 0:
             msg = (
                 "Indices must start at 0! Got: "
                 f"{idx_all.min()} for {idx_all.tolist()}"
             )
             raise ValueError(msg)
-        if idx_all.max() != idx_all_amt - 1:
+        if idx_all_amt > 0 and idx_all.max() != idx_all_amt - 1:
             msg = (
                 "Indices must be contiguous! Got: "
                 f"{idx_all.min()} to {idx_all.max()} for {idx_all.tolist()}"
@@ -237,7 +241,11 @@ class TrackletMemory(nn.Module):
                 upd = torch.where(~(idxs >= 0), obs.get(KEY_FRAME), frame)
             else:
                 upd = T.cast(Tensor, obs.get(id))
-            state.update(upd)
+            try:
+                state.update(upd)
+            except ValueError as e:
+                msg = f"Could not update state {id!r}"
+                raise ValueError(msg) from e
 
         return obs.get(KEY_ID)
 
@@ -286,7 +294,11 @@ class TrackletMemory(nn.Module):
                     f"Got new keys: {keys}"
                 )
                 raise KeyError(msg)
-            state.extend(ext)
+            try:
+                state.extend(ext)
+            except ValueError as e:
+                msg = f"Could not extend state {id!r}"
+                raise ValueError(msg) from e
 
         # Update the tracklet count to the last (maximum) ID of the newly made tracklets
         self.tracklet_count.fill_(ids.max())
@@ -316,10 +328,15 @@ class TrackletMemory(nn.Module):
         if self.frame >= frame:
             if self.auto_reset:
                 # Reset because the current frame is larger than the stored frame.
+                if check_debug_enabled():
+                    print(f"Auto-resetting memory ({self.frame=} >= {frame=})!")
                 self.reset()
             else:
                 msg = f"Frame index {frame} is less than or equal to saved frame {self.frame=}!"
                 raise IndexError(msg)
+
+        if check_debug_enabled():
+            print(f"Reading memory at frame {frame}.")
 
         # Calculate the time-delta from the amoutn of frames passed and the FPS.
         delta = torch.abs(frame - self.frame) / self.fps
