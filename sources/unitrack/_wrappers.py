@@ -161,7 +161,10 @@ class StatefulTracker(nn.Module):
 
         self.tracker = tracker
         self.memory_delegate = _MemoryReadWriter(memory)
-        self.memory_storage = None
+        self.memory_storage: (
+            tuple[dict[str, torch.nn.Parameter], dict[str, Tensor], dict[str, Tensor]]
+            | None
+        ) = None
 
     @classmethod
     def _split_persistent_buffers(
@@ -193,7 +196,7 @@ class StatefulTracker(nn.Module):
     def _lookup_pbd(
         self, key: int
     ) -> tuple[
-        dict[str, torch.Tensor], dict[str, torch.Tensor], dict[str, torch.Tensor]
+        dict[str, torch.nn.Parameter], dict[str, torch.Tensor], dict[str, torch.Tensor]
     ]:
         if self.memory_storage is None:
             prefix = "memory"

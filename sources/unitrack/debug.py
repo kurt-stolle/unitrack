@@ -15,6 +15,6 @@ def check_debug_enabled():
     Check whether debugging is enabled by reading the environment
     variable ``UNITRACK_DEBUG``.
     """
-    from unipercept.config import get_env
+    from unipercept.config.env import get_env
 
     return get_env(bool, "UNITRACK_DEBUG", default=False)
